@@ -287,9 +287,15 @@ main {
 /* ── Folder Sidebar ── */
 .folder-sidebar {
   display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 1.5rem;
+}
+
+.folder-chips-row {
+  display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-bottom: 1.5rem;
   align-items: center;
 }
 
@@ -325,11 +331,31 @@ main {
   opacity: 0.6;
 }
 
+.folder-rename-input {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--pencil);
+  border-radius: 6px;
+  background: transparent;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.8125rem;
+  color: var(--graphite);
+  outline: none;
+  width: 10ch;
+  min-width: 4ch;
+  max-width: 30ch;
+  box-sizing: border-box;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.folder-rename-input:focus {
+  border-color: var(--lichen);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lichen) 25%, transparent);
+}
+
 .folder-item-wrapper {
   display: inline-flex;
   align-items: center;
   gap: 0;
-  position: relative;
 }
 
 .folder-item-menu {
@@ -364,37 +390,39 @@ main {
 }
 
 .folder-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: 20;
-  min-width: 100px;
-  padding: 0.25rem 0;
-  border: 1px solid color-mix(in srgb, var(--pencil) 30%, transparent);
-  border-radius: 6px;
-  background: var(--paper);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.4rem 0.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--pencil) 20%, transparent);
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .folder-dropdown-item {
-  display: block;
-  width: 100%;
-  padding: 0.4rem 0.75rem;
-  border: none;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--pencil) 30%, transparent);
+  border-radius: 4px;
   background: none;
   color: var(--graphite);
   font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 0.8125rem;
-  text-align: left;
+  font-size: 0.75rem;
   cursor: pointer;
+  transition: border-color 200ms ease, color 200ms ease;
 }
 
 .folder-dropdown-item:hover {
-  background: color-mix(in srgb, var(--pencil) 10%, transparent);
+  border-color: var(--pencil);
+  color: var(--graphite);
 }
 
 .folder-dropdown-item--danger {
+  border-color: color-mix(in srgb, var(--ember) 50%, transparent);
   color: var(--ember);
+}
+
+.folder-dropdown-item--danger:hover {
+  border-color: var(--ember);
 }
 
 .folder-add {

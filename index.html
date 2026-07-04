@@ -528,6 +528,9 @@
     function renderFolders() {
       folderSidebar.innerHTML = '';
 
+      const folderChipsRow = document.createElement('div');
+      folderChipsRow.className = 'folder-chips-row';
+
       // "All thoughts"
       const allBtn = document.createElement('button');
       allBtn.className = 'folder-item' + (activeFolderId === null ? ' folder-item--active' : '');
@@ -549,13 +552,14 @@
         const thoughtId = e.dataTransfer.getData('text/plain');
         if (thoughtId) moveThoughtToFolder(thoughtId, null);
       });
-      folderSidebar.appendChild(allBtn);
+      folderChipsRow.appendChild(allBtn);
 
       // User folders
       folders.forEach(folder => {
         const count = thoughts.filter(t => t.folderId === folder.id).length;
         const wrapper = document.createElement('div');
         wrapper.className = 'folder-item-wrapper';
+        wrapper.dataset.folderId = folder.id;
 
         const chip = document.createElement('div');
         chip.className = 'folder-item' + (activeFolderId === folder.id ? ' folder-item--active' : '');
@@ -575,7 +579,7 @@
         menuBtn.textContent = '\u2026';
         menuBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          toggleFolderMenu(wrapper, folder);
+          toggleFolderMenu(folder);
         });
         chip.appendChild(menuBtn);
 
@@ -605,7 +609,7 @@
           }
         }, { passive: false });
 
-        folderSidebar.appendChild(wrapper);
+        folderChipsRow.appendChild(wrapper);
       });
 
       // "+" button — transforms to input on click
@@ -647,10 +651,11 @@
       });
       addWrap.appendChild(addInput);
 
-      folderSidebar.appendChild(addWrap);
+      folderChipsRow.appendChild(addWrap);
+      folderSidebar.appendChild(folderChipsRow);
     }
 
-    function toggleFolderMenu(wrapper, folder) {
+    function toggleFolderMenu(folder) {
       document.querySelectorAll('.folder-dropdown').forEach(el => el.remove());
 
       const dropdown = document.createElement('div');
@@ -662,7 +667,7 @@
       renameBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         dropdown.remove();
-        startRenameFolder(wrapper, folder);
+        startRenameFolder(folder);
       });
       dropdown.appendChild(renameBtn);
 
@@ -672,21 +677,14 @@
       deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         dropdown.remove();
-        confirmDeleteFolder(wrapper, folder);
+        confirmDeleteFolder(folder);
       });
       dropdown.appendChild(deleteBtn);
 
-      wrapper.appendChild(dropdown);
-
-      // Overflow flip: if dropdown would go off right edge, align right instead
-      const rect = dropdown.getBoundingClientRect();
-      if (rect.right > window.innerWidth - 8) {
-        dropdown.style.left = 'auto';
-        dropdown.style.right = '0';
-      }
+      folderSidebar.appendChild(dropdown);
 
       const closeMenu = (ev) => {
-        if (!wrapper.contains(ev.target)) {
+        if (!folderSidebar.contains(ev.target)) {
           dropdown.remove();
           document.removeEventListener('click', closeMenu);
         }
@@ -694,13 +692,15 @@
       setTimeout(() => document.addEventListener('click', closeMenu), 0);
     }
 
-    function startRenameFolder(wrapper, folder) {
+    function startRenameFolder(folder) {
+      const wrapper = folderSidebar.querySelector(`[data-folder-id="${folder.id}"]`);
+      if (!wrapper) return;
       const chip = wrapper.querySelector('.folder-item');
       const currentName = folder.name;
 
       const input = document.createElement('input');
       input.type = 'text';
-      input.className = 'folder-name-input';
+      input.className = 'folder-rename-input';
       input.value = currentName;
       input.maxLength = 30;
 
@@ -734,8 +734,9 @@
       input.select();
     }
 
-    function confirmDeleteFolder(wrapper, folder) {
-      const count = thoughts.filter(t => t.folderId === folder.id).length;
+    function confirmDeleteFolder(folder) {
+      const wrapper = folderSidebar.querySelector(`[data-folder-id="${folder.id}"]`);
+      if (!wrapper) return;
       const chip = wrapper.querySelector('.folder-item');
 
       const confirm = document.createElement('div');
