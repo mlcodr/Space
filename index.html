@@ -115,6 +115,27 @@
     </div>
 
     <div class="entries" id="entries"></div>
+
+    <div class="recovery-section" id="recoverySection">
+      <button class="recovery-link" id="recoveryLink">set up recovery</button>
+      <div class="recovery-form" id="recoveryForm" hidden>
+        <p class="recovery-subtitle">choose a question to recover your PIN later</p>
+        <select class="security-input" id="recoveryQ">
+          <option value="">Select a question...</option>
+          <option value="What is your cat's name?">What is your cat's name?</option>
+          <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
+          <option value="What was your first pet's name?">What was your first pet's name?</option>
+          <option value="What city were you born in?">What city were you born in?</option>
+          <option value="What is your favorite book?">What is your favorite book?</option>
+        </select>
+        <input type="text" class="security-input" id="recoveryA" placeholder="your answer" autocomplete="off">
+        <div class="recovery-actions">
+          <button class="pin-btn recovery-save" id="recoverySaveBtn">Save</button>
+          <button class="recovery-cancel" id="recoveryCancelBtn">cancel</button>
+        </div>
+        <p class="pin-error" id="recoveryError" hidden></p>
+      </div>
+    </div>
   </main>
 
   <script>
@@ -506,6 +527,7 @@
       mainEl.hidden = false;
       setTimestamp();
       renderEntries();
+      updateRecoveryLink();
     }
 
     pinBtn.addEventListener('click', handlePinSubmit);
@@ -546,6 +568,77 @@
         securitySetupError.hidden = false;
         securitySetupBtn.disabled = false;
         securitySetupBtn.textContent = 'Save';
+      }
+    });
+
+    // ── Recovery Setup (from journal) ──
+    const recoveryLink = document.getElementById('recoveryLink');
+    const recoveryForm = document.getElementById('recoveryForm');
+    const recoveryQ = document.getElementById('recoveryQ');
+    const recoveryA = document.getElementById('recoveryA');
+    const recoverySaveBtn = document.getElementById('recoverySaveBtn');
+    const recoveryCancelBtn = document.getElementById('recoveryCancelBtn');
+    const recoveryError = document.getElementById('recoveryError');
+
+    function updateRecoveryLink() {
+      recoveryLink.hidden = !!cachedSecurityQ;
+    }
+
+    recoveryLink.addEventListener('click', () => {
+      recoveryForm.hidden = false;
+      recoveryLink.hidden = true;
+      recoveryError.hidden = true;
+      recoveryQ.value = '';
+      recoveryA.value = '';
+      recoveryQ.focus();
+    });
+
+    recoveryCancelBtn.addEventListener('click', () => {
+      recoveryForm.hidden = true;
+      updateRecoveryLink();
+    });
+
+    recoverySaveBtn.addEventListener('click', async () => {
+      const q = recoveryQ.value;
+      const a = recoveryA.value.trim();
+      if (!q) { recoveryError.textContent = 'Please select a question.'; recoveryError.hidden = false; return; }
+      if (!a) { recoveryError.textContent = 'Please enter an answer.'; recoveryError.hidden = false; return; }
+
+      recoverySaveBtn.disabled = true;
+      recoverySaveBtn.textContent = 'Saving\u2026';
+      recoveryError.hidden = true;
+
+      try {
+        const creds = getCreds();
+        if (!creds) { showSetup(); return; }
+
+        // Fetch current file
+        const remote = await githubFetch(creds.user, creds.repo, creds.token);
+        if (!remote) { throw new Error('File not found on GitHub'); }
+
+        // Patch only security fields — leave salt/iv/ciphertext untouched
+        const answerHash = await hashAnswer(a);
+        const payload = {
+          ...remote.content,
+          securityQuestion: q,
+          securityAnswerHash: answerHash
+        };
+
+        // Fetch fresh SHA and PUT
+        const saved = await githubSave(creds.user, creds.repo, creds.token, payload, remote.sha);
+        currentSha = saved.content.sha;
+        cachedSecurityQ = q;
+        cachedSecurityHash = answerHash;
+
+        recoveryForm.hidden = true;
+        recoveryLink.hidden = true;
+        console.log('[Space] Recovery question set:', q);
+      } catch (e) {
+        console.error('[Space] Recovery setup error:', e);
+        recoveryError.textContent = 'Save failed: ' + e.message;
+        recoveryError.hidden = false;
+        recoverySaveBtn.disabled = false;
+        recoverySaveBtn.textContent = 'Save';
       }
     });
 

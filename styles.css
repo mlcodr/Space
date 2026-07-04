@@ -284,6 +284,77 @@ main {
   gap: 0.25rem;
 }
 
+.recovery-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--pencil) 12%, transparent);
+}
+
+.recovery-link {
+  background: none;
+  border: none;
+  color: var(--pencil);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  padding: 0;
+  transition: color 300ms ease;
+}
+
+.recovery-link:hover {
+  color: var(--lichen);
+}
+
+.recovery-link:focus-visible {
+  outline: 2px solid var(--lichen);
+  outline-offset: 2px;
+}
+
+.recovery-form {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.recovery-subtitle {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.8125rem;
+  color: var(--pencil);
+  margin: 0;
+}
+
+.recovery-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.recovery-save {
+  width: auto;
+  padding: 0.5rem 1.25rem;
+}
+
+.recovery-cancel {
+  background: none;
+  border: none;
+  color: var(--pencil);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  padding: 0;
+  transition: color 300ms ease;
+}
+
+.recovery-cancel:hover {
+  color: var(--lichen);
+}
+
+.recovery-cancel:focus-visible {
+  outline: 2px solid var(--lichen);
+  outline-offset: 2px;
+}
+
 .entry {
   display: flex;
   flex-direction: column;
