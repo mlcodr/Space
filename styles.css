@@ -788,6 +788,53 @@ main {
   display: none;
 }
 
+.pin-forgot {
+  display: block;
+  margin: 0.75rem auto 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--pencil);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: color 300ms ease;
+}
+
+.pin-forgot:hover {
+  color: var(--lichen);
+}
+
+.pin-forgot:focus-visible {
+  outline: 2px solid var(--lichen);
+  outline-offset: 2px;
+}
+
+.security-input {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--pencil) 40%, transparent);
+  border-radius: 8px;
+  background: transparent;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.9375rem;
+  color: var(--graphite);
+  text-align: left;
+  outline: none;
+  margin-bottom: 0.75rem;
+  transition: border-color 300ms ease, box-shadow 300ms ease, color 300ms ease;
+}
+
+.security-input:focus {
+  border-color: var(--lichen);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lichen) 25%, transparent);
+}
+
+.security-input option {
+  background: var(--paper);
+  color: var(--graphite);
+}
+
 /* ── Save Status Indicator ── */
 .save-status {
   font-family: 'IBM Plex Sans', sans-serif;

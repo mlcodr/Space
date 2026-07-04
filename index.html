@@ -53,9 +53,39 @@
     <div class="pin-card">
       <h1 class="pin-title">Space</h1>
       <p class="pin-subtitle">enter your PIN</p>
-      <input type="password" class="pin-input" id="pinInput" inputmode="numeric" pattern="[0-9]*" placeholder="\u2022\u2022\u2022\u2022" maxlength="16" autocomplete="off">
+      <input type="password" class="pin-input" id="pinInput" inputmode="numeric" pattern="[0-9]*" placeholder="••••" maxlength="16" autocomplete="off">
       <button class="pin-btn" id="pinBtn">Enter</button>
       <p class="pin-error" id="pinError" hidden></p>
+      <button class="pin-forgot" id="forgotPinBtn" hidden>Forgot PIN?</button>
+    </div>
+  </div>
+
+  <div class="pin-screen pin-screen--hidden" id="securitySetupScreen">
+    <div class="pin-card">
+      <h1 class="pin-title">Security Question</h1>
+      <p class="pin-subtitle">choose a question to recover your PIN later</p>
+      <select class="security-input" id="securityQ">
+        <option value="">Select a question...</option>
+        <option value="What is your cat's name?">What is your cat's name?</option>
+        <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
+        <option value="What was your first pet's name?">What was your first pet's name?</option>
+        <option value="What city were you born in?">What city were you born in?</option>
+        <option value="What is your favorite book?">What is your favorite book?</option>
+      </select>
+      <input type="text" class="security-input" id="securityA" placeholder="your answer" autocomplete="off">
+      <button class="pin-btn" id="securitySetupBtn">Save</button>
+      <p class="pin-error" id="securitySetupError" hidden></p>
+    </div>
+  </div>
+
+  <div class="pin-screen pin-screen--hidden" id="forgotPinScreen">
+    <div class="pin-card">
+      <h1 class="pin-title">Recover PIN</h1>
+      <p class="pin-subtitle" id="forgotQuestion"></p>
+      <input type="text" class="security-input" id="forgotAnswer" placeholder="your answer" autocomplete="off">
+      <button class="pin-btn" id="forgotVerifyBtn">Verify</button>
+      <p class="pin-error" id="forgotError" hidden></p>
+      <button class="pin-forgot" id="forgotBackBtn">Back to PIN</button>
     </div>
   </div>
 
@@ -272,6 +302,49 @@
     const setupBtn = document.getElementById('setupBtn');
     const setupError = document.getElementById('setupError');
     const pinScreen = document.getElementById('pinScreen');
+    const securitySetupScreen = document.getElementById('securitySetupScreen');
+    const securityQ = document.getElementById('securityQ');
+    const securityA = document.getElementById('securityA');
+    const securitySetupBtn = document.getElementById('securitySetupBtn');
+    const securitySetupError = document.getElementById('securitySetupError');
+    const forgotPinScreen = document.getElementById('forgotPinScreen');
+    const forgotQuestion = document.getElementById('forgotQuestion');
+    const forgotAnswer = document.getElementById('forgotAnswer');
+    const forgotVerifyBtn = document.getElementById('forgotVerifyBtn');
+    const forgotError = document.getElementById('forgotError');
+    const forgotBackBtn = document.getElementById('forgotBackBtn');
+    const forgotPinBtn = document.getElementById('forgotPinBtn');
+    let isResetMode = false;
+    let resetSha = null;
+
+    async function hashAnswer(answer) {
+      const encoded = new TextEncoder().encode(answer.toLowerCase().trim());
+      const hash = await crypto.subtle.digest('SHA-256', encoded);
+      return bufferToBase64(new Uint8Array(hash));
+    }
+
+    async function saveSecurity(question, answer) {
+      localStorage.setItem('space-security-q', question);
+      const hash = await hashAnswer(answer);
+      localStorage.setItem('space-security-a', hash);
+      console.log('[Space] Security question saved:', question);
+    }
+
+    async function verifySecurity(answer) {
+      const stored = localStorage.getItem('space-security-a');
+      if (!stored) { console.log('[Space] verifySecurity: no stored hash found'); return false; }
+      const hash = await hashAnswer(answer);
+      const match = hash === stored;
+      console.log('[Space] verifySecurity: input trimmed/lowered, hash match =', match);
+      return match;
+    }
+
+    function hideAllScreens() {
+      setupScreen.classList.add('setup-screen--hidden');
+      pinScreen.classList.add('pin-screen--hidden');
+      securitySetupScreen.classList.add('pin-screen--hidden');
+      forgotPinScreen.classList.add('pin-screen--hidden');
+    }
 
     function showSetup() {
       setupScreen.classList.remove('setup-screen--hidden');
@@ -325,6 +398,7 @@
     const pinInput = document.getElementById('pinInput');
     const pinBtn = document.getElementById('pinBtn');
     const pinError = document.getElementById('pinError');
+    const pinSubtitle = document.querySelector('.pin-subtitle');
     const mainEl = document.getElementById('main');
     let cryptoKey = null;
     let currentSalt = null;
@@ -345,11 +419,29 @@
 
       hidePinError();
       pinBtn.disabled = true;
-      pinBtn.textContent = 'Unlocking\u2026';
+      pinBtn.textContent = isResetMode ? 'Setting up\u2026' : 'Unlocking\u2026';
 
       try {
         const creds = getCreds();
         if (!creds) { showSetup(); return; }
+
+        if (isResetMode) {
+          const salt = generateSalt();
+          currentSalt = salt;
+          localStorage.setItem('space-salt', bufferToBase64(salt));
+
+          cryptoKey = await deriveKey(pin, salt);
+          const enc = await encryptThoughts([], cryptoKey);
+          const payload = { version: 1, updatedAt: Date.now(), salt: bufferToBase64(salt), iv: enc.iv, ciphertext: enc.ciphertext };
+          const result = await githubSave(creds.user, creds.repo, creds.token, payload, resetSha);
+          currentSha = result.content.sha;
+          thoughts = [];
+          isResetMode = false;
+          resetSha = null;
+          pinSubtitle.textContent = 'enter your PIN';
+          revealJournal();
+          return;
+        }
 
         // Fetch from GitHub
         let remoteData = null;
@@ -376,7 +468,13 @@
           currentSha = saved.content.sha;
 
           thoughts = [];
-          revealJournal();
+
+          if (!localStorage.getItem('space-security-q')) {
+            hideAllScreens();
+            securitySetupScreen.classList.remove('pin-screen--hidden');
+          } else {
+            revealJournal();
+          }
           return;
         }
 
@@ -410,7 +508,7 @@
     }
 
     function revealJournal() {
-      pinScreen.classList.add('pin-screen--hidden');
+      hideAllScreens();
       mainEl.hidden = false;
       setTimestamp();
       renderEntries();
@@ -421,12 +519,74 @@
       if (e.key === 'Enter') handlePinSubmit();
     });
 
+    securitySetupBtn.addEventListener('click', async () => {
+      const q = securityQ.value;
+      const a = securityA.value.trim();
+      if (!q) { securitySetupError.textContent = 'Please select a question.'; securitySetupError.hidden = false; return; }
+      if (!a) { securitySetupError.textContent = 'Please enter an answer.'; securitySetupError.hidden = false; return; }
+      console.log('[Space] Saving security question:', q);
+      await saveSecurity(q, a);
+      revealJournal();
+    });
+
+    forgotPinBtn.addEventListener('click', () => {
+      const q = localStorage.getItem('space-security-q');
+      console.log('[Space] Forgot PIN clicked, stored question:', q ? q.substring(0, 40) : '(none)');
+      if (q) forgotQuestion.textContent = q;
+      hideAllScreens();
+      forgotPinScreen.classList.remove('pin-screen--hidden');
+      forgotAnswer.focus();
+    });
+
+    forgotVerifyBtn.addEventListener('click', async () => {
+      const a = forgotAnswer.value.trim();
+      if (!a) { forgotError.textContent = 'Please enter your answer.'; forgotError.hidden = false; return; }
+      forgotError.hidden = true;
+
+      const ok = await verifySecurity(a);
+      if (!ok) { forgotError.textContent = 'Incorrect answer. Try again.'; forgotError.hidden = false; return; }
+
+      const creds = getCreds();
+      if (!creds) { showSetup(); return; }
+
+      let remoteData = null;
+      try {
+        remoteData = await githubFetch(creds.user, creds.repo, creds.token);
+      } catch (e) {
+        forgotError.textContent = 'GitHub error: ' + e.message;
+        forgotError.hidden = false;
+        return;
+      }
+
+      resetSha = remoteData ? remoteData.sha : null;
+      isResetMode = true;
+      hideAllScreens();
+      pinScreen.classList.remove('pin-screen--hidden');
+      pinSubtitle.textContent = 'create a new PIN';
+      pinInput.value = '';
+      forgotAnswer.value = '';
+      forgotPinBtn.hidden = true;
+      setTimeout(() => pinInput.focus(), 100);
+    });
+
+    forgotBackBtn.addEventListener('click', () => {
+      hideAllScreens();
+      pinScreen.classList.remove('pin-screen--hidden');
+      pinInput.value = '';
+      forgotAnswer.value = '';
+      forgotError.hidden = true;
+      setTimeout(() => pinInput.focus(), 100);
+    });
+
     // ── Init flow ──
     const hasCreds = !!getCreds();
     if (!hasCreds) {
       showSetup();
     } else {
       pinScreen.classList.remove('pin-screen--hidden');
+      if (localStorage.getItem('space-security-q')) {
+        forgotPinBtn.hidden = false;
+      }
       setTimeout(() => pinInput.focus(), 100);
     }
 
