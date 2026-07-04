@@ -557,40 +557,43 @@
         const wrapper = document.createElement('div');
         wrapper.className = 'folder-item-wrapper';
 
-        const btn = document.createElement('button');
-        btn.className = 'folder-item' + (activeFolderId === folder.id ? ' folder-item--active' : '');
-        btn.textContent = folder.name;
+        const chip = document.createElement('div');
+        chip.className = 'folder-item' + (activeFolderId === folder.id ? ' folder-item--active' : '');
+        chip.setAttribute('role', 'button');
+        chip.tabIndex = 0;
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = folder.name;
+        chip.appendChild(nameSpan);
         const countEl = document.createElement('span');
         countEl.className = 'folder-item-count';
         countEl.textContent = count;
-        btn.appendChild(countEl);
-        btn.addEventListener('click', () => {
-          activeFolderId = folder.id;
-          renderFolders();
-          renderEntries();
-        });
-        btn.addEventListener('dragover', (e) => { e.preventDefault(); btn.classList.add('folder-item--drag-over'); });
-        btn.addEventListener('dragleave', () => btn.classList.remove('folder-item--drag-over'));
-        btn.addEventListener('drop', (e) => {
-          e.preventDefault();
-          btn.classList.remove('folder-item--drag-over');
-          const thoughtId = e.dataTransfer.getData('text/plain');
-          if (thoughtId) moveThoughtToFolder(thoughtId, folder.id);
-        });
-        wrapper.appendChild(btn);
+        chip.appendChild(countEl);
 
-        // "..." menu — only appears on hover/click via the wrapper
-        const menuWrap = document.createElement('div');
-        menuWrap.className = 'folder-item-menu';
+        // "..." menu — inside the chip, only visible on hover
         const menuBtn = document.createElement('button');
         menuBtn.className = 'folder-item-menu-btn';
         menuBtn.textContent = '\u2026';
         menuBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          toggleFolderMenu(menuWrap, folder);
+          toggleFolderMenu(wrapper, folder);
         });
-        menuWrap.appendChild(menuBtn);
-        wrapper.appendChild(menuWrap);
+        chip.appendChild(menuBtn);
+
+        chip.addEventListener('click', (e) => {
+          if (e.target === menuBtn) return;
+          activeFolderId = folder.id;
+          renderFolders();
+          renderEntries();
+        });
+        chip.addEventListener('dragover', (e) => { e.preventDefault(); chip.classList.add('folder-item--drag-over'); });
+        chip.addEventListener('dragleave', () => chip.classList.remove('folder-item--drag-over'));
+        chip.addEventListener('drop', (e) => {
+          e.preventDefault();
+          chip.classList.remove('folder-item--drag-over');
+          const thoughtId = e.dataTransfer.getData('text/plain');
+          if (thoughtId) moveThoughtToFolder(thoughtId, folder.id);
+        });
+        wrapper.appendChild(chip);
 
         // Mobile: tap to toggle "..." visibility
         wrapper.addEventListener('touchstart', (e) => {
@@ -650,6 +653,7 @@
     function toggleFolderMenu(wrapper, folder) {
       document.querySelectorAll('.folder-dropdown').forEach(el => el.remove());
 
+      const chip = wrapper.querySelector('.folder-item');
       const dropdown = document.createElement('div');
       dropdown.className = 'folder-dropdown';
 
@@ -659,7 +663,7 @@
       renameBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         dropdown.remove();
-        startRenameFolder(folder);
+        startRenameFolder(wrapper, folder);
       });
       dropdown.appendChild(renameBtn);
 
@@ -669,7 +673,7 @@
       deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         dropdown.remove();
-        confirmDeleteFolder(folder);
+        confirmDeleteFolder(wrapper, folder);
       });
       dropdown.appendChild(deleteBtn);
 
@@ -684,23 +688,65 @@
       setTimeout(() => document.addEventListener('click', closeMenu), 0);
     }
 
-    function startRenameFolder(folder) {
-      const name = prompt('Rename folder:', folder.name);
-      if (name !== null && name.trim()) {
-        folder.name = name.trim();
-        renderFolders();
-        persistToGitHub();
-      }
+    function startRenameFolder(wrapper, folder) {
+      const chip = wrapper.querySelector('.folder-item');
+      const currentName = folder.name;
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'folder-name-input';
+      input.value = currentName;
+      input.maxLength = 30;
+
+      const save = () => {
+        const newName = input.value.trim();
+        if (newName && newName !== currentName) {
+          folder.name = newName;
+          renderFolders();
+          persistToGitHub();
+        } else {
+          renderFolders();
+        }
+      };
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); save(); }
+        else if (e.key === 'Escape') { renderFolders(); }
+      });
+      input.addEventListener('blur', save);
+
+      chip.textContent = '';
+      chip.appendChild(input);
+      input.focus();
+      input.select();
     }
 
-    function confirmDeleteFolder(folder) {
+    function confirmDeleteFolder(wrapper, folder) {
       const count = thoughts.filter(t => t.folderId === folder.id).length;
-      const msg = count > 0
-        ? `Delete "${folder.name}"? ${count} thought${count > 1 ? 's' : ''} will be unfiled.`
-        : `Delete "${folder.name}"?`;
-      if (confirm(msg)) {
+      const chip = wrapper.querySelector('.folder-item');
+
+      const confirm = document.createElement('div');
+      confirm.className = 'entry-delete-confirm';
+      confirm.innerHTML = '<span>delete?</span>';
+      const yesBtn = document.createElement('button');
+      yesBtn.className = 'confirm-yes';
+      yesBtn.textContent = 'yes';
+      yesBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
         deleteFolder(folder);
-      }
+      });
+      const noBtn = document.createElement('button');
+      noBtn.className = 'confirm-no';
+      noBtn.textContent = 'no';
+      noBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        renderFolders();
+      });
+      confirm.appendChild(yesBtn);
+      confirm.appendChild(noBtn);
+
+      chip.textContent = '';
+      chip.appendChild(confirm);
     }
 
     // ── Folder CRUD ──

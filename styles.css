@@ -305,6 +305,7 @@ main {
   font-family: 'IBM Plex Sans', sans-serif;
   font-size: 0.8125rem;
   cursor: pointer;
+  position: relative;
   transition: border-color 200ms ease, color 200ms ease, background 200ms ease;
 }
 
@@ -331,12 +332,15 @@ main {
 }
 
 .folder-item-menu {
-  position: relative;
   display: inline-flex;
+  align-items: center;
+  margin-left: 0.15rem;
 }
 
 .folder-item-menu-btn {
-  padding: 0.25rem 0.3rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.15rem;
   border: none;
   background: none;
   color: var(--pencil);
@@ -348,8 +352,8 @@ main {
   line-height: 1;
 }
 
-.folder-item-wrapper:hover > .folder-item-menu .folder-item-menu-btn,
-.folder-item-wrapper--show-menu > .folder-item-menu .folder-item-menu-btn {
+.folder-item:hover > .folder-item-menu-btn,
+.folder-item-wrapper--show-menu > .folder-item > .folder-item-menu-btn {
   opacity: 1;
   pointer-events: auto;
 }
@@ -360,8 +364,8 @@ main {
 
 .folder-dropdown {
   position: absolute;
-  top: 100%;
-  right: 0;
+  top: calc(100% + 4px);
+  left: 0;
   z-index: 20;
   min-width: 100px;
   padding: 0.25rem 0;
@@ -715,6 +719,10 @@ main {
 
 /* ── Dark mode: expanded entry contrast fix ── */
 
+[data-theme="dark"] .entry-delete-confirm {
+  color: #7A756A;
+}
+
 [data-theme="dark"] .entry--expanded .entry-date {
   color: #7A756A;
 }
@@ -750,10 +758,6 @@ main {
   border-color: #D97757;
   color: #D97757;
   background: rgba(217,119,87,0.12);
-}
-
-[data-theme="dark"] .entry--expanded .entry-delete-confirm {
-  color: #7A756A;
 }
 
 [data-theme="dark"] .entry--expanded .entry-folder {
