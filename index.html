@@ -85,7 +85,9 @@
       </div>
     </div>
 
-    <div class="folder-sidebar" id="folderSidebar"></div>
+    <div class="folder-list" id="folderList"></div>
+
+    <div class="folder-detail" id="folderDetail" hidden></div>
 
     <div class="entries" id="entries"></div>
   </main>
@@ -447,7 +449,9 @@
       hideAllScreens();
       mainEl.hidden = false;
       setTimestamp();
-      renderFolders();
+      currentView = 'list';
+      renderFolderList();
+      folderDetailEl.hidden = true;
       renderEntries();
     }
 
@@ -469,14 +473,7 @@
     // ── State ──
     let thoughts = [];
     let folders = [];
-    let activeFolderId = null;
-
-    // Mobile: tapping anywhere outside a folder wrapper clears the "..." show state
-    document.addEventListener('touchstart', (e) => {
-      if (!e.target.closest('.folder-item-wrapper')) {
-        document.querySelectorAll('.folder-item-wrapper--show-menu').forEach(el => el.classList.remove('folder-item-wrapper--show-menu'));
-      }
-    }, { passive: true });
+    let currentView = 'list'; // 'list' or a folder id
     let editingId = null;
     let saving = false;
     let draggedThoughtId = null;
@@ -489,7 +486,8 @@
     const saveBtn = document.getElementById('saveBtn');
     const searchInput = document.getElementById('searchInput');
     const entriesEl = document.getElementById('entries');
-    const folderSidebar = document.getElementById('folderSidebar');
+    const folderListEl = document.getElementById('folderList');
+    const folderDetailEl = document.getElementById('folderDetail');
 
     // ── Helpers ──
     function formatShortDate(ts) {
@@ -524,183 +522,188 @@
       return f ? f.name : null;
     }
 
-    // ── Folder Sidebar ──
-    function renderFolders() {
-      folderSidebar.innerHTML = '';
+    function getCurrentFolder() {
+      if (currentView === 'list') return null;
+      return folders.find(f => f.id === currentView) || null;
+    }
 
-      const folderChipsRow = document.createElement('div');
-      folderChipsRow.className = 'folder-chips-row';
+    // ── Navigation ──
+    function navigateToFolder(folderId) {
+      currentView = folderId;
+      renderFolderList();
+      renderFolderDetail();
+      renderEntries();
+      entriesEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
-      // "All thoughts"
-      const allBtn = document.createElement('button');
-      allBtn.className = 'folder-item' + (activeFolderId === null ? ' folder-item--active' : '');
-      allBtn.textContent = 'All thoughts';
+    function navigateBack() {
+      currentView = 'list';
+      renderFolderList();
+      folderDetailEl.hidden = true;
+      renderEntries();
+    }
+
+    // ── Folder List (VIEW 1) ──
+    function renderFolderList() {
+      folderListEl.innerHTML = '';
+      folderListEl.hidden = (currentView !== 'list');
+
+      if (currentView !== 'list') return;
+
+      // "All thoughts" row
+      const allRow = document.createElement('button');
+      allRow.className = 'folder-row';
+      const allName = document.createElement('span');
+      allName.className = 'folder-row-name';
+      allName.textContent = 'All thoughts';
       const allCount = document.createElement('span');
-      allCount.className = 'folder-item-count';
+      allCount.className = 'folder-row-count';
       allCount.textContent = thoughts.length;
-      allBtn.appendChild(allCount);
-      allBtn.addEventListener('click', () => {
-        activeFolderId = null;
-        renderFolders();
+      const allChevron = document.createElement('span');
+      allChevron.className = 'folder-row-chevron';
+      allChevron.textContent = '\u203a';
+      allRow.appendChild(allName);
+      allRow.appendChild(allCount);
+      allRow.appendChild(allChevron);
+      allRow.addEventListener('click', () => {
+        currentView = 'list';
         renderEntries();
+        folderListEl.querySelectorAll('.folder-row').forEach(r => r.classList.remove('folder-row--active'));
+        allRow.classList.add('folder-row--active');
       });
-      allBtn.addEventListener('dragover', (e) => { e.preventDefault(); allBtn.classList.add('folder-item--drag-over'); });
-      allBtn.addEventListener('dragleave', () => allBtn.classList.remove('folder-item--drag-over'));
-      allBtn.addEventListener('drop', (e) => {
+      // Drop target for unfiled
+      allRow.addEventListener('dragover', (e) => { e.preventDefault(); allRow.classList.add('folder-row--drag-over'); });
+      allRow.addEventListener('dragleave', () => allRow.classList.remove('folder-row--drag-over'));
+      allRow.addEventListener('drop', (e) => {
         e.preventDefault();
-        allBtn.classList.remove('folder-item--drag-over');
+        allRow.classList.remove('folder-row--drag-over');
         const thoughtId = e.dataTransfer.getData('text/plain');
         if (thoughtId) moveThoughtToFolder(thoughtId, null);
       });
-      folderChipsRow.appendChild(allBtn);
+      folderListEl.appendChild(allRow);
 
-      // User folders
+      // Folder rows
       folders.forEach(folder => {
         const count = thoughts.filter(t => t.folderId === folder.id).length;
-        const wrapper = document.createElement('div');
-        wrapper.className = 'folder-item-wrapper';
-        wrapper.dataset.folderId = folder.id;
-
-        const chip = document.createElement('div');
-        chip.className = 'folder-item' + (activeFolderId === folder.id ? ' folder-item--active' : '');
-        chip.setAttribute('role', 'button');
-        chip.tabIndex = 0;
+        const row = document.createElement('button');
+        row.className = 'folder-row';
+        row.dataset.folderId = folder.id;
         const nameSpan = document.createElement('span');
+        nameSpan.className = 'folder-row-name';
         nameSpan.textContent = folder.name;
-        chip.appendChild(nameSpan);
-        const countEl = document.createElement('span');
-        countEl.className = 'folder-item-count';
-        countEl.textContent = count;
-        chip.appendChild(countEl);
-
-        // "..." menu — inside the chip, only visible on hover
-        const menuBtn = document.createElement('button');
-        menuBtn.className = 'folder-item-menu-btn';
-        menuBtn.textContent = '\u2026';
-        menuBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          toggleFolderMenu(folder);
-        });
-        chip.appendChild(menuBtn);
-
-        chip.addEventListener('click', (e) => {
-          if (e.target === menuBtn) return;
-          activeFolderId = folder.id;
-          renderFolders();
-          renderEntries();
-        });
-        chip.addEventListener('dragover', (e) => { e.preventDefault(); chip.classList.add('folder-item--drag-over'); });
-        chip.addEventListener('dragleave', () => chip.classList.remove('folder-item--drag-over'));
-        chip.addEventListener('drop', (e) => {
+        const countSpan = document.createElement('span');
+        countSpan.className = 'folder-row-count';
+        countSpan.textContent = count;
+        const chevron = document.createElement('span');
+        chevron.className = 'folder-row-chevron';
+        chevron.textContent = '\u203a';
+        row.appendChild(nameSpan);
+        row.appendChild(countSpan);
+        row.appendChild(chevron);
+        row.addEventListener('click', () => navigateToFolder(folder.id));
+        // Drop target
+        row.addEventListener('dragover', (e) => { e.preventDefault(); row.classList.add('folder-row--drag-over'); });
+        row.addEventListener('dragleave', () => row.classList.remove('folder-row--drag-over'));
+        row.addEventListener('drop', (e) => {
           e.preventDefault();
-          chip.classList.remove('folder-item--drag-over');
+          row.classList.remove('folder-row--drag-over');
           const thoughtId = e.dataTransfer.getData('text/plain');
           if (thoughtId) moveThoughtToFolder(thoughtId, folder.id);
         });
-        wrapper.appendChild(chip);
-
-        // Mobile: tap to toggle "..." visibility
-        wrapper.addEventListener('touchstart', (e) => {
-          const wasShowing = wrapper.classList.contains('folder-item-wrapper--show-menu');
-          document.querySelectorAll('.folder-item-wrapper--show-menu').forEach(el => el.classList.remove('folder-item-wrapper--show-menu'));
-          if (!wasShowing) {
-            e.preventDefault();
-            wrapper.classList.add('folder-item-wrapper--show-menu');
-          }
-        }, { passive: false });
-
-        folderChipsRow.appendChild(wrapper);
+        folderListEl.appendChild(row);
       });
 
-      // "+" button — transforms to input on click
-      const addWrap = document.createElement('div');
-      addWrap.className = 'folder-add';
-      const addBtn = document.createElement('button');
-      addBtn.className = 'folder-add-btn';
-      addBtn.textContent = '+';
-      addBtn.addEventListener('click', () => {
-        addBtn.hidden = true;
+      // "+ New folder" row
+      const addRow = document.createElement('button');
+      addRow.className = 'folder-add-row';
+      addRow.textContent = '+ New folder';
+      const addInput = document.createElement('input');
+      addInput.type = 'text';
+      addInput.className = 'folder-add-input';
+      addInput.placeholder = 'folder name';
+      addInput.maxLength = 30;
+      addInput.hidden = true;
+      addRow.addEventListener('click', () => {
+        addRow.hidden = true;
         addInput.hidden = false;
         addInput.value = '';
         addInput.focus();
       });
-      addWrap.appendChild(addBtn);
-
-      const addInput = document.createElement('input');
-      addInput.type = 'text';
-      addInput.className = 'folder-name-input';
-      addInput.placeholder = 'folder name';
-      addInput.maxLength = 30;
-      addInput.hidden = true;
       addInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           const name = addInput.value.trim();
           if (name) {
             createFolder(name);
             addInput.hidden = true;
-            addBtn.hidden = false;
+            addRow.hidden = false;
           }
         } else if (e.key === 'Escape') {
           addInput.hidden = true;
-          addBtn.hidden = false;
+          addRow.hidden = false;
         }
       });
       addInput.addEventListener('blur', () => {
         addInput.hidden = true;
-        addBtn.hidden = false;
+        addRow.hidden = false;
       });
-      addWrap.appendChild(addInput);
-
-      folderChipsRow.appendChild(addWrap);
-      folderSidebar.appendChild(folderChipsRow);
+      folderListEl.appendChild(addRow);
+      folderListEl.appendChild(addInput);
     }
 
-    function toggleFolderMenu(folder) {
-      document.querySelectorAll('.folder-dropdown').forEach(el => el.remove());
+    // ── Folder Detail (VIEW 2) ──
+    function renderFolderDetail() {
+      const folder = getCurrentFolder();
+      if (!folder) {
+        folderDetailEl.hidden = true;
+        return;
+      }
+      folderDetailEl.hidden = false;
+      folderDetailEl.innerHTML = '';
 
-      const dropdown = document.createElement('div');
-      dropdown.className = 'folder-dropdown';
+      const header = document.createElement('div');
+      header.className = 'folder-detail-header';
+
+      // Back button
+      const backBtn = document.createElement('button');
+      backBtn.className = 'folder-back-btn';
+      backBtn.textContent = '\u2190 Back';
+      backBtn.addEventListener('click', navigateBack);
+      header.appendChild(backBtn);
+
+      // Folder name (or rename input)
+      const nameEl = document.createElement('span');
+      nameEl.className = 'folder-detail-name';
+      nameEl.textContent = folder.name;
+      header.appendChild(nameEl);
+
+      // Action buttons
+      const actions = document.createElement('div');
+      actions.className = 'folder-detail-actions';
 
       const renameBtn = document.createElement('button');
-      renameBtn.className = 'folder-dropdown-item';
+      renameBtn.className = 'folder-detail-btn';
       renameBtn.textContent = 'Rename';
-      renameBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        dropdown.remove();
-        startRenameFolder(folder);
-      });
-      dropdown.appendChild(renameBtn);
+      renameBtn.addEventListener('click', () => startDetailRename(folder, header));
+      actions.appendChild(renameBtn);
 
       const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'folder-dropdown-item folder-dropdown-item--danger';
+      deleteBtn.className = 'folder-detail-btn folder-detail-btn--danger';
       deleteBtn.textContent = 'Delete';
-      deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        dropdown.remove();
-        confirmDeleteFolder(folder);
-      });
-      dropdown.appendChild(deleteBtn);
+      deleteBtn.addEventListener('click', () => confirmDetailDelete(folder, header));
+      actions.appendChild(deleteBtn);
 
-      folderSidebar.appendChild(dropdown);
-
-      const closeMenu = (ev) => {
-        if (!folderSidebar.contains(ev.target)) {
-          dropdown.remove();
-          document.removeEventListener('click', closeMenu);
-        }
-      };
-      setTimeout(() => document.addEventListener('click', closeMenu), 0);
+      header.appendChild(actions);
+      folderDetailEl.appendChild(header);
     }
 
-    function startRenameFolder(folder) {
-      const wrapper = folderSidebar.querySelector(`[data-folder-id="${folder.id}"]`);
-      if (!wrapper) return;
-      const chip = wrapper.querySelector('.folder-item');
+    function startDetailRename(folder, header) {
+      const nameEl = header.querySelector('.folder-detail-name');
+      const actions = header.querySelector('.folder-detail-actions');
       const currentName = folder.name;
 
       const input = document.createElement('input');
       input.type = 'text';
-      input.className = 'folder-rename-input';
+      input.className = 'folder-detail-rename';
       input.value = currentName;
       input.maxLength = 30;
 
@@ -711,37 +714,38 @@
         if (newName && newName !== currentName) {
           saved = true;
           folder.name = newName;
-          renderFolders();
+          renderFolderDetail();
+          renderFolderList();
           const ok = await persistToGitHub();
           if (!ok) {
             folder.name = currentName;
-            renderFolders();
+            renderFolderDetail();
+            renderFolderList();
           }
         } else {
-          renderFolders();
+          renderFolderDetail();
         }
       };
 
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); save(); }
-        else if (e.key === 'Escape') { saved = true; renderFolders(); }
+        else if (e.key === 'Escape') { saved = true; renderFolderDetail(); }
       });
       input.addEventListener('blur', save);
 
-      chip.textContent = '';
-      chip.appendChild(input);
+      nameEl.replaceWith(input);
+      actions.hidden = true;
       input.focus();
       input.select();
     }
 
-    function confirmDeleteFolder(folder) {
-      const wrapper = folderSidebar.querySelector(`[data-folder-id="${folder.id}"]`);
-      if (!wrapper) return;
-      const chip = wrapper.querySelector('.folder-item');
+    function confirmDetailDelete(folder, header) {
+      const actions = header.querySelector('.folder-detail-actions');
+      actions.hidden = true;
 
       const confirm = document.createElement('div');
-      confirm.className = 'entry-delete-confirm';
-      confirm.innerHTML = '<span>delete?</span>';
+      confirm.className = 'folder-detail-delete-confirm';
+      confirm.innerHTML = '<span>delete this folder?</span>';
       const yesBtn = document.createElement('button');
       yesBtn.className = 'confirm-yes';
       yesBtn.textContent = 'yes';
@@ -754,13 +758,11 @@
       noBtn.textContent = 'no';
       noBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        renderFolders();
+        renderFolderDetail();
       });
       confirm.appendChild(yesBtn);
       confirm.appendChild(noBtn);
-
-      chip.textContent = '';
-      chip.appendChild(confirm);
+      header.appendChild(confirm);
     }
 
     // ── Folder CRUD ──
@@ -768,16 +770,17 @@
       const folder = { id: crypto.randomUUID(), name, createdAt: Date.now() };
       folders.push(folder);
       console.log('[Space] Folder created:', name, folder.id);
-      renderFolders();
+      renderFolderList();
       await persistToGitHub();
     }
 
     async function deleteFolder(folder) {
       thoughts.forEach(t => { if (t.folderId === folder.id) t.folderId = null; });
       folders = folders.filter(f => f.id !== folder.id);
-      if (activeFolderId === folder.id) activeFolderId = null;
       console.log('[Space] Folder deleted:', folder.name);
-      renderFolders();
+      currentView = 'list';
+      renderFolderList();
+      folderDetailEl.hidden = true;
       renderEntries();
       await persistToGitHub();
     }
@@ -789,7 +792,7 @@
       t.updatedAt = Date.now();
       const folderName = getFolderName(folderId);
       console.log('[Space] Moved thought', thoughtId, 'to', folderName || '(unfiled)');
-      renderFolders();
+      renderFolderList();
       renderEntries();
       await persistToGitHub();
     }
@@ -870,7 +873,7 @@
       entriesEl.innerHTML = '';
 
       const filtered = thoughts.filter(t => {
-        if (activeFolderId !== null && t.folderId !== activeFolderId) return false;
+        if (currentView !== 'list' && t.folderId !== currentView) return false;
         return true;
       });
 
@@ -882,10 +885,10 @@
         return;
       }
 
-      if (filtered.length === 0 && activeFolderId !== null) {
+      if (filtered.length === 0 && currentView !== 'list') {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
-        empty.innerHTML = '<p>no thoughts in this folder.</p>';
+        empty.innerHTML = '<p>no thoughts in this folder yet.</p>';
         entriesEl.appendChild(empty);
         return;
       }
@@ -1119,7 +1122,7 @@
       thoughts = thoughts.filter(t => t.id !== id);
       editingId = null;
       saveBtn.textContent = 'Save thought';
-      renderFolders();
+      renderFolderList();
       renderEntries();
       await persistToGitHub();
     }
@@ -1141,7 +1144,7 @@
         t.updatedAt = Date.now();
         editingId = null;
         saveBtn.textContent = 'Save thought';
-        renderFolders();
+        renderFolderList();
         renderEntries();
         const ok = await persistToGitHub();
         if (ok) {
@@ -1162,10 +1165,10 @@
           updatedAt: Date.now(),
           tag,
           body,
-          folderId: activeFolderId
+          folderId: currentView !== 'list' ? currentView : null
         };
         thoughts.push(newThought);
-        renderFolders();
+        renderFolderList();
         renderEntries();
         const ok = await persistToGitHub();
         if (ok) {

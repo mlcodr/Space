@@ -284,191 +284,196 @@ main {
   gap: 0.25rem;
 }
 
-/* ── Folder Sidebar ── */
-.folder-sidebar {
+/* ── Folder List (VIEW 1) ── */
+.folder-list {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 0.25rem;
   margin-bottom: 1.5rem;
 }
 
-.folder-chips-row {
+.folder-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
   align-items: center;
-}
-
-.folder-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--pencil) 30%, transparent);
-  border-radius: 6px;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--pencil) 20%, transparent);
+  border-radius: 8px;
   background: transparent;
   color: var(--pencil);
   font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   cursor: pointer;
-  position: relative;
   transition: border-color 200ms ease, color 200ms ease, background 200ms ease;
 }
 
-.folder-item:hover {
+.folder-row:hover {
   border-color: var(--pencil);
   color: var(--graphite);
+  background: color-mix(in srgb, var(--paper) 50%, transparent);
 }
 
-.folder-item--active {
+.folder-row--active {
   border-color: var(--lichen);
   color: var(--lichen);
   background: color-mix(in srgb, var(--lichen) 8%, transparent);
 }
 
-.folder-item-count {
-  font-size: 0.6875rem;
-  opacity: 0.6;
+.folder-row-name {
+  flex: 1;
 }
 
-.folder-rename-input {
-  padding: 0.35rem 0.75rem;
-  border: 1px solid var(--pencil);
+.folder-row-count {
+  font-size: 0.75rem;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.folder-row-chevron {
+  font-size: 0.75rem;
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+
+.folder-add-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px dashed color-mix(in srgb, var(--pencil) 25%, transparent);
+  border-radius: 8px;
+  background: none;
+  color: var(--pencil);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: border-color 200ms ease, color 200ms ease;
+}
+
+.folder-add-row:hover {
+  border-color: var(--pencil);
+  color: var(--graphite);
+}
+
+.folder-add-input {
+  flex: 1;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--lichen);
   border-radius: 6px;
   background: transparent;
   font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: var(--graphite);
   outline: none;
-  width: 10ch;
-  min-width: 4ch;
-  max-width: 30ch;
-  box-sizing: border-box;
-  transition: border-color 200ms ease, box-shadow 200ms ease;
 }
 
-.folder-rename-input:focus {
-  border-color: var(--lichen);
+.folder-add-input:focus {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--lichen) 25%, transparent);
 }
 
-.folder-item-wrapper {
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
+/* ── Folder Detail (VIEW 2) ── */
+.folder-detail {
+  margin-bottom: 1.5rem;
 }
 
-.folder-item-menu {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 0.15rem;
+.folder-detail[hidden] {
+  display: none;
 }
 
-.folder-item-menu-btn {
-  display: inline-flex;
+.folder-detail-header {
+  display: flex;
   align-items: center;
-  padding: 0 0.15rem;
-  border: none;
+  gap: 0.75rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--pencil) 15%, transparent);
+  margin-bottom: 0.5rem;
+}
+
+.folder-back-btn {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--pencil) 30%, transparent);
+  border-radius: 4px;
   background: none;
   color: var(--pencil);
-  font-size: 0.875rem;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.8125rem;
   cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 200ms;
-  line-height: 1;
+  flex-shrink: 0;
+  transition: border-color 200ms ease, color 200ms ease;
 }
 
-.folder-item:hover > .folder-item-menu-btn,
-.folder-item-wrapper--show-menu > .folder-item > .folder-item-menu-btn {
-  opacity: 1;
-  pointer-events: auto;
+.folder-back-btn:hover {
+  border-color: var(--pencil);
+  color: var(--graphite);
 }
 
-.folder-item-menu-btn:hover {
-  opacity: 1;
+.folder-detail-name {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--graphite);
+  flex: 1;
+  min-width: 0;
 }
 
-.folder-dropdown {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0.4rem 0.5rem;
-  border-top: 1px solid color-mix(in srgb, var(--pencil) 20%, transparent);
+.folder-detail-actions {
   display: flex;
   gap: 0.5rem;
-  align-items: center;
+  flex-shrink: 0;
 }
 
-.folder-dropdown-item {
+.folder-detail-btn {
   padding: 0.3rem 0.65rem;
   border: 1px solid color-mix(in srgb, var(--pencil) 30%, transparent);
   border-radius: 4px;
   background: none;
-  color: var(--graphite);
+  color: var(--pencil);
   font-family: 'IBM Plex Sans', sans-serif;
   font-size: 0.75rem;
   cursor: pointer;
   transition: border-color 200ms ease, color 200ms ease;
 }
 
-.folder-dropdown-item:hover {
+.folder-detail-btn:hover {
   border-color: var(--pencil);
   color: var(--graphite);
 }
 
-.folder-dropdown-item--danger {
+.folder-detail-btn--danger {
   border-color: color-mix(in srgb, var(--ember) 50%, transparent);
   color: var(--ember);
 }
 
-.folder-dropdown-item--danger:hover {
+.folder-detail-btn--danger:hover {
   border-color: var(--ember);
 }
 
-.folder-add {
-  display: inline-flex;
-  align-items: center;
-}
-
-.folder-add-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  padding: 0;
-  border: 1px solid color-mix(in srgb, var(--pencil) 20%, transparent);
-  border-radius: 6px;
-  background: none;
-  color: var(--pencil);
-  font-size: 1rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: border-color 200ms ease, color 200ms ease, background 200ms ease;
-}
-
-.folder-add-btn:hover {
-  border-color: var(--pencil);
-  color: var(--graphite);
-  background: color-mix(in srgb, var(--pencil) 5%, transparent);
-}
-
-.folder-name-input {
-  padding: 0.3rem 0.5rem;
-  border: 1px solid var(--lichen);
-  border-radius: 6px;
+.folder-detail-rename {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--pencil);
+  border-radius: 4px;
   background: transparent;
   font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 0.8125rem;
+  font-size: 1.125rem;
+  font-weight: 500;
   color: var(--graphite);
   outline: none;
-  width: 120px;
-  height: 1.75rem;
-  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
 }
 
-.folder-name-input:focus {
+.folder-detail-rename:focus {
+  border-color: var(--lichen);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--lichen) 25%, transparent);
+}
+
+.folder-detail-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.8125rem;
+  color: var(--pencil);
 }
 
 /* ── Entry Folder Label ── */
@@ -510,7 +515,7 @@ main {
   opacity: 0.65;
 }
 
-.folder-item--drag-over {
+.folder-row--drag-over {
   border-color: var(--lichen) !important;
   background: color-mix(in srgb, var(--lichen) 12%, transparent) !important;
 }
