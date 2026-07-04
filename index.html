@@ -252,20 +252,29 @@
       if (sha) body.sha = sha;
 
       console.log('[Space] githubSave URL:', url, '| SHA included:', !!sha);
-      const res = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `token ${token}`,
-          'Accept': 'application/vnd.github+json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-      });
+      let res;
+      try {
+        res = await fetch(url, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `token ${token}`,
+            'Accept': 'application/vnd.github+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(body)
+        });
+      } catch (e) {
+        const err = new Error('Network error: ' + e.message);
+        err.status = 0;
+        throw err;
+      }
       console.log('[Space] githubSave response:', res.status, res.statusText);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         console.error('[Space] GitHub error body:', err);
-        throw new Error(err.message || `GitHub save failed: ${res.status}`);
+        const e = new Error(err.message || `GitHub save failed: ${res.status}`);
+        e.status = res.status;
+        throw e;
       }
       return res.json();
     }
@@ -274,7 +283,7 @@
     const saveStatus = document.getElementById('saveStatus');
     let saveStatusTimer = null;
 
-    function showSaveStatus(state) {
+    function showSaveStatus(state, msg) {
       clearTimeout(saveStatusTimer);
       saveStatus.className = 'save-status';
       saveStatus.textContent = '';
@@ -287,7 +296,7 @@
         saveStatus.textContent = 'saved';
       } else if (state === 'error') {
         saveStatus.classList.add('save-status--error');
-        saveStatus.textContent = 'save failed \u2014 check connection';
+        saveStatus.textContent = msg || 'save failed';
       } else if (state === 'pin-error') {
         saveStatus.classList.add('save-status--error');
         saveStatus.textContent = 'incorrect PIN';
@@ -316,27 +325,13 @@
     const forgotPinBtn = document.getElementById('forgotPinBtn');
     let isResetMode = false;
     let resetSha = null;
+    let cachedSecurityQ = null;
+    let cachedSecurityHash = null;
 
     async function hashAnswer(answer) {
-      const encoded = new TextEncoder().encode(answer.toLowerCase().trim());
+      const encoded = new TextEncoder().encode(answer.trim());
       const hash = await crypto.subtle.digest('SHA-256', encoded);
       return bufferToBase64(new Uint8Array(hash));
-    }
-
-    async function saveSecurity(question, answer) {
-      localStorage.setItem('space-security-q', question);
-      const hash = await hashAnswer(answer);
-      localStorage.setItem('space-security-a', hash);
-      console.log('[Space] Security question saved:', question);
-    }
-
-    async function verifySecurity(answer) {
-      const stored = localStorage.getItem('space-security-a');
-      if (!stored) { console.log('[Space] verifySecurity: no stored hash found'); return false; }
-      const hash = await hashAnswer(answer);
-      const match = hash === stored;
-      console.log('[Space] verifySecurity: input trimmed/lowered, hash match =', match);
-      return match;
     }
 
     function hideAllScreens() {
@@ -432,8 +427,19 @@
 
           cryptoKey = await deriveKey(pin, salt);
           const enc = await encryptThoughts([], cryptoKey);
-          const payload = { version: 1, updatedAt: Date.now(), salt: bufferToBase64(salt), iv: enc.iv, ciphertext: enc.ciphertext };
-          const result = await githubSave(creds.user, creds.repo, creds.token, payload, resetSha);
+          const payload = {
+            version: 1, updatedAt: Date.now(),
+            salt: bufferToBase64(salt), iv: enc.iv, ciphertext: enc.ciphertext,
+            securityQuestion: cachedSecurityQ, securityAnswerHash: cachedSecurityHash
+          };
+
+          let sha = null;
+          try {
+            const fresh = await githubFetch(creds.user, creds.repo, creds.token);
+            if (fresh) sha = fresh.sha;
+          } catch { /* new file or fetch error — save without SHA */ }
+
+          const result = await githubSave(creds.user, creds.repo, creds.token, payload, sha);
           currentSha = result.content.sha;
           thoughts = [];
           isResetMode = false;
@@ -454,27 +460,15 @@
         }
 
         if (!remoteData) {
-          // First use — no file yet
+          // First use — no file yet, derive key and show security setup
           const salt = generateSalt();
           currentSalt = salt;
           localStorage.setItem('space-salt', bufferToBase64(salt));
 
           cryptoKey = await deriveKey(pin, salt);
-
-          // Save empty array to establish the file
-          const enc = await encryptThoughts([], cryptoKey);
-          const payload = { version: 1, updatedAt: Date.now(), salt: bufferToBase64(salt), iv: enc.iv, ciphertext: enc.ciphertext };
-          const saved = await githubSave(creds.user, creds.repo, creds.token, payload, null);
-          currentSha = saved.content.sha;
-
           thoughts = [];
-
-          if (!localStorage.getItem('space-security-q')) {
-            hideAllScreens();
-            securitySetupScreen.classList.remove('pin-screen--hidden');
-          } else {
-            revealJournal();
-          }
+          hideAllScreens();
+          securitySetupScreen.classList.remove('pin-screen--hidden');
           return;
         }
 
@@ -494,6 +488,9 @@
 
         thoughts = decrypted;
         currentSha = remoteData.sha;
+        cachedSecurityQ = remoteData.content.securityQuestion || null;
+        cachedSecurityHash = remoteData.content.securityAnswerHash || null;
+        forgotPinBtn.hidden = !cachedSecurityQ;
         revealJournal();
       } catch (e) {
         console.error('[Space] Error:', e);
@@ -524,15 +521,44 @@
       const a = securityA.value.trim();
       if (!q) { securitySetupError.textContent = 'Please select a question.'; securitySetupError.hidden = false; return; }
       if (!a) { securitySetupError.textContent = 'Please enter an answer.'; securitySetupError.hidden = false; return; }
-      console.log('[Space] Saving security question:', q);
-      await saveSecurity(q, a);
-      revealJournal();
+
+      securitySetupBtn.disabled = true;
+      securitySetupBtn.textContent = 'Saving\u2026';
+      securitySetupError.hidden = true;
+
+      try {
+        const creds = getCreds();
+        if (!creds) { showSetup(); return; }
+
+        const answerHash = await hashAnswer(a);
+        const enc = await encryptThoughts(thoughts, cryptoKey);
+        const payload = {
+          version: 1, updatedAt: Date.now(),
+          salt: bufferToBase64(currentSalt), iv: enc.iv, ciphertext: enc.ciphertext,
+          securityQuestion: q, securityAnswerHash: answerHash
+        };
+        const saved = await githubSave(creds.user, creds.repo, creds.token, payload, null);
+        currentSha = saved.content.sha;
+        cachedSecurityQ = q;
+        cachedSecurityHash = answerHash;
+        console.log('[Space] File created with security question:', q);
+        revealJournal();
+      } catch (e) {
+        console.error('[Space] Security setup error:', e);
+        securitySetupError.textContent = 'Save failed: ' + e.message;
+        securitySetupError.hidden = false;
+        securitySetupBtn.disabled = false;
+        securitySetupBtn.textContent = 'Save';
+      }
     });
 
     forgotPinBtn.addEventListener('click', () => {
-      const q = localStorage.getItem('space-security-q');
-      console.log('[Space] Forgot PIN clicked, stored question:', q ? q.substring(0, 40) : '(none)');
-      if (q) forgotQuestion.textContent = q;
+      console.log('[Space] Forgot PIN — cached question:', cachedSecurityQ ? cachedSecurityQ.substring(0, 40) : '(none)');
+      if (cachedSecurityQ) {
+        forgotQuestion.textContent = cachedSecurityQ;
+      } else {
+        forgotQuestion.textContent = 'Recovery was never set up for this journal. You\'ll need to set a new PIN from the setup screen.';
+      }
       hideAllScreens();
       forgotPinScreen.classList.remove('pin-screen--hidden');
       forgotAnswer.focus();
@@ -543,7 +569,15 @@
       if (!a) { forgotError.textContent = 'Please enter your answer.'; forgotError.hidden = false; return; }
       forgotError.hidden = true;
 
-      const ok = await verifySecurity(a);
+      if (!cachedSecurityHash) {
+        forgotError.textContent = 'No security answer on file. Recovery was never set up.';
+        forgotError.hidden = false;
+        return;
+      }
+
+      const inputHash = await hashAnswer(a);
+      const ok = inputHash === cachedSecurityHash;
+      console.log('[Space] verifySecurity: hash match =', ok);
       if (!ok) { forgotError.textContent = 'Incorrect answer. Try again.'; forgotError.hidden = false; return; }
 
       const creds = getCreds();
@@ -580,19 +614,18 @@
 
     // ── Init flow ──
     const hasCreds = !!getCreds();
+    console.log('[Space] Init — creds:', hasCreds);
     if (!hasCreds) {
       showSetup();
     } else {
       pinScreen.classList.remove('pin-screen--hidden');
-      if (localStorage.getItem('space-security-q')) {
-        forgotPinBtn.hidden = false;
-      }
       setTimeout(() => pinInput.focus(), 100);
     }
 
     // ── State ──
     let thoughts = [];
     let editingId = null;
+    let saving = false;
 
     // ── DOM refs ──
     const page = document.getElementById('page');
@@ -644,11 +677,15 @@
     async function persistToGitHub() {
       console.log('[Space] persistToGitHub called, thoughts count:', thoughts.length);
       const creds = getCreds();
-      if (!creds) { console.error('[Space] persistToGitHub: no credentials in localStorage'); showSaveStatus('error'); return; }
-      if (!cryptoKey) { console.error('[Space] persistToGitHub: cryptoKey is null — PIN not entered?'); showSaveStatus('error'); return; }
-      if (!currentSalt) { console.error('[Space] persistToGitHub: currentSalt is null'); showSaveStatus('error'); return; }
+      if (!creds) { console.error('[Space] persistToGitHub: no credentials in localStorage'); showSaveStatus('error', 'missing credentials'); return; }
+      if (!cryptoKey) { console.error('[Space] persistToGitHub: cryptoKey is null — PIN not entered?'); showSaveStatus('error', 'not unlocked'); return; }
+      if (!currentSalt) { console.error('[Space] persistToGitHub: currentSalt is null'); showSaveStatus('error', 'no encryption key'); return; }
+      if (saving) { console.warn('[Space] persistToGitHub: already in progress, skipping'); return; }
 
+      saving = true;
+      saveBtn.disabled = true;
       showSaveStatus('saving');
+
       try {
         const enc = await encryptThoughts(thoughts, cryptoKey);
         const payload = {
@@ -674,14 +711,57 @@
           console.warn('[Space] Could not fetch fresh SHA, using cached:', currentSha, '— error:', e.message);
         }
 
+        // First attempt
         console.log('[Space] PUTting to GitHub with SHA:', sha);
-        const result = await githubSave(creds.user, creds.repo, creds.token, payload, sha);
+        let result;
+        try {
+          result = await githubSave(creds.user, creds.repo, creds.token, payload, sha);
+        } catch (e) {
+          // SHA conflict — re-fetch and retry once
+          if (e.status === 409 || e.status === 422) {
+            console.warn('[Space] SHA conflict (' + e.status + '), retrying with fresh SHA...');
+            showSaveStatus('saving');
+            try {
+              const fresh = await githubFetch(creds.user, creds.repo, creds.token);
+              const retrySha = fresh ? fresh.sha : null;
+              console.log('[Space] Retry SHA:', retrySha);
+              result = await githubSave(creds.user, creds.repo, creds.token, payload, retrySha);
+              console.log('[Space] Retry succeeded');
+            } catch (e2) {
+              console.error('[Space] Retry also failed:', e2);
+              if (e2.status === 401 || e2.status === 403) {
+                showSaveStatus('error', 'token issue — check GitHub token permissions');
+              } else if (e2.status === 0) {
+                showSaveStatus('error', 'check your connection');
+              } else {
+                showSaveStatus('error', 'save failed (HTTP ' + e2.status + ')');
+              }
+              return;
+            }
+          } else if (e.status === 401 || e.status === 403) {
+            console.error('[Space] Auth error:', e);
+            showSaveStatus('error', 'token issue — check GitHub token permissions');
+            return;
+          } else if (e.status === 0) {
+            console.error('[Space] Network error:', e);
+            showSaveStatus('error', 'check your connection');
+            return;
+          } else {
+            console.error('[Space] Save error:', e);
+            showSaveStatus('error', 'save failed (HTTP ' + e.status + ')');
+            return;
+          }
+        }
+
         currentSha = result.content.sha;
         console.log('[Space] Save successful, new SHA:', currentSha);
         showSaveStatus('saved');
       } catch (e) {
-        console.error('[Space] Save error:', e);
-        showSaveStatus('error');
+        console.error('[Space] Unexpected error:', e);
+        showSaveStatus('error', 'save failed: ' + e.message);
+      } finally {
+        saving = false;
+        saveBtn.disabled = false;
       }
     }
 
