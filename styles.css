@@ -342,9 +342,16 @@ main {
   color: var(--pencil);
   font-size: 0.875rem;
   cursor: pointer;
-  opacity: 0.4;
+  opacity: 0;
+  pointer-events: none;
   transition: opacity 200ms;
   line-height: 1;
+}
+
+.folder-item-wrapper:hover > .folder-item-menu .folder-item-menu-btn,
+.folder-item-wrapper--show-menu > .folder-item-menu .folder-item-menu-btn {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .folder-item-menu-btn:hover {

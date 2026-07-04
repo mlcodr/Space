@@ -470,6 +470,13 @@
     let thoughts = [];
     let folders = [];
     let activeFolderId = null;
+
+    // Mobile: tapping anywhere outside a folder wrapper clears the "..." show state
+    document.addEventListener('touchstart', (e) => {
+      if (!e.target.closest('.folder-item-wrapper')) {
+        document.querySelectorAll('.folder-item-wrapper--show-menu').forEach(el => el.classList.remove('folder-item-wrapper--show-menu'));
+      }
+    }, { passive: true });
     let editingId = null;
     let saving = false;
     let draggedThoughtId = null;
@@ -584,6 +591,16 @@
         });
         menuWrap.appendChild(menuBtn);
         wrapper.appendChild(menuWrap);
+
+        // Mobile: tap to toggle "..." visibility
+        wrapper.addEventListener('touchstart', (e) => {
+          const wasShowing = wrapper.classList.contains('folder-item-wrapper--show-menu');
+          document.querySelectorAll('.folder-item-wrapper--show-menu').forEach(el => el.classList.remove('folder-item-wrapper--show-menu'));
+          if (!wasShowing) {
+            e.preventDefault();
+            wrapper.classList.add('folder-item-wrapper--show-menu');
+          }
+        }, { passive: false });
 
         folderSidebar.appendChild(wrapper);
       });
