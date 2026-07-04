@@ -53,7 +53,7 @@
     <div class="pin-card">
       <h1 class="pin-title">Space</h1>
       <p class="pin-subtitle">enter your PIN</p>
-      <input type="password" class="pin-input" id="pinInput" inputmode="numeric" pattern="[0-9]*" placeholder="••••" maxlength="16" autocomplete="off">
+      <input type="password" class="pin-input" id="pinInput" inputmode="numeric" pattern="[0-9]*" placeholder="&#8226;&#8226;&#8226;&#8226;" maxlength="16" autocomplete="off">
       <button class="pin-btn" id="pinBtn">Enter</button>
       <p class="pin-error" id="pinError" hidden></p>
       <p class="pin-warning">There is no way to recover this PIN if forgotten &mdash; write it down somewhere safe.</p>
@@ -84,6 +84,8 @@
         <input type="search" class="search-input" id="searchInput" placeholder="search your thoughts">
       </div>
     </div>
+
+    <div class="folder-sidebar" id="folderSidebar"></div>
 
     <div class="entries" id="entries"></div>
   </main>
@@ -150,9 +152,9 @@
       );
     }
 
-    async function encryptThoughts(thoughts, key) {
+    async function encryptPayload(data, key) {
       const iv = crypto.getRandomValues(new Uint8Array(12));
-      const plaintext = new TextEncoder().encode(JSON.stringify(thoughts));
+      const plaintext = new TextEncoder().encode(JSON.stringify(data));
 
       const ciphertext = await crypto.subtle.encrypt(
         { name: 'AES-GCM', iv },
@@ -166,7 +168,7 @@
       };
     }
 
-    async function decryptThoughts(ciphertext, iv, key) {
+    async function decryptPayload(ciphertext, iv, key) {
       try {
         const ciphertextBuffer = base64ToBuffer(ciphertext);
         const ivBuffer = base64ToBuffer(iv);
@@ -178,7 +180,12 @@
         );
 
         const decoded = new TextDecoder().decode(plaintext);
-        return JSON.parse(decoded);
+        const parsed = JSON.parse(decoded);
+        // Backward compat: old format was a bare array
+        if (Array.isArray(parsed)) {
+          return { thoughts: parsed, folders: [] };
+        }
+        return parsed;
       } catch (e) {
         return null;
       }
@@ -223,7 +230,6 @@
       };
       if (sha) body.sha = sha;
 
-      console.log('[Space] githubSave URL:', url, '| SHA included:', !!sha);
       let res;
       try {
         res = await fetch(url, {
@@ -240,10 +246,8 @@
         err.status = 0;
         throw err;
       }
-      console.log('[Space] githubSave response:', res.status, res.statusText);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        console.error('[Space] GitHub error body:', err);
         const e = new Error(err.message || `GitHub save failed: ${res.status}`);
         e.status = res.status;
         throw e;
@@ -364,7 +368,6 @@
         const creds = getCreds();
         if (!creds) { showSetup(); return; }
 
-        // Fetch from GitHub
         let remoteData = null;
         try {
           remoteData = await githubFetch(creds.user, creds.repo, creds.token);
@@ -375,12 +378,12 @@
         }
 
         if (!remoteData) {
-          // First use — no file yet, create it
+          // First use
           const salt = generateSalt();
           currentSalt = salt;
 
           cryptoKey = await deriveKey(pin, salt);
-          const enc = await encryptThoughts([], cryptoKey);
+          const enc = await encryptPayload({ thoughts: [], folders: [] }, cryptoKey);
           const payload = {
             version: 1,
             updatedAt: Date.now(),
@@ -393,21 +396,22 @@
           try {
             const fresh = await githubFetch(creds.user, creds.repo, creds.token);
             if (fresh) sha = fresh.sha;
-          } catch { /* new file — save without SHA */ }
+          } catch { /* new file */ }
 
           const result = await githubSave(creds.user, creds.repo, creds.token, payload, sha);
           currentSha = result.content.sha;
           thoughts = [];
+          folders = [];
           revealJournal();
           return;
         }
 
-        // File exists — use stored salt from JSON
+        // Existing file
         const storedSalt = base64ToBuffer(remoteData.content.salt);
         currentSalt = new Uint8Array(storedSalt);
 
         cryptoKey = await deriveKey(pin, currentSalt);
-        const decrypted = await decryptThoughts(remoteData.content.ciphertext, remoteData.content.iv, cryptoKey);
+        const decrypted = await decryptPayload(remoteData.content.ciphertext, remoteData.content.iv, cryptoKey);
 
         if (decrypted === null) {
           showPinError('Incorrect PIN. Try again.');
@@ -415,7 +419,8 @@
           return;
         }
 
-        thoughts = decrypted;
+        thoughts = decrypted.thoughts || [];
+        folders = decrypted.folders || [];
         currentSha = remoteData.sha;
         revealJournal();
       } catch (e) {
@@ -434,6 +439,7 @@
       hideAllScreens();
       mainEl.hidden = false;
       setTimestamp();
+      renderFolders();
       renderEntries();
     }
 
@@ -454,8 +460,11 @@
 
     // ── State ──
     let thoughts = [];
+    let folders = [];
+    let activeFolderId = null;
     let editingId = null;
     let saving = false;
+    let draggedThoughtId = null;
 
     // ── DOM refs ──
     const page = document.getElementById('page');
@@ -465,6 +474,7 @@
     const saveBtn = document.getElementById('saveBtn');
     const searchInput = document.getElementById('searchInput');
     const entriesEl = document.getElementById('entries');
+    const folderSidebar = document.getElementById('folderSidebar');
 
     // ── Helpers ──
     function formatShortDate(ts) {
@@ -493,31 +503,231 @@
       timestamp.setAttribute('datetime', now.toISOString().slice(0, 10));
     }
 
-    // ── Save Pulse ──
-    function triggerPulse() {
-      page.classList.remove('page--pulse');
-      void page.offsetWidth;
-      page.classList.add('page--pulse');
-      page.addEventListener('animationend', () => {
-        page.classList.remove('page--pulse');
-      }, { once: true });
+    function getFolderName(id) {
+      if (!id) return null;
+      const f = folders.find(x => x.id === id);
+      return f ? f.name : null;
+    }
+
+    // ── Folder Sidebar ──
+    function renderFolders() {
+      folderSidebar.innerHTML = '';
+
+      // "All thoughts"
+      const allBtn = document.createElement('button');
+      allBtn.className = 'folder-item' + (activeFolderId === null ? ' folder-item--active' : '');
+      allBtn.textContent = 'All thoughts';
+      const allCount = document.createElement('span');
+      allCount.className = 'folder-item-count';
+      allCount.textContent = thoughts.length;
+      allBtn.appendChild(allCount);
+      allBtn.addEventListener('click', () => {
+        activeFolderId = null;
+        renderFolders();
+        renderEntries();
+      });
+      // Drop target for "All thoughts"
+      allBtn.addEventListener('dragover', (e) => { e.preventDefault(); allBtn.classList.add('folder-item--drag-over'); });
+      allBtn.addEventListener('dragleave', () => { allBtn.classList.remove('folder-item--drag-over'); });
+      allBtn.addEventListener('drop', (e) => {
+        e.preventDefault();
+        allBtn.classList.remove('folder-item--drag-over');
+        const thoughtId = e.dataTransfer.getData('text/plain');
+        if (thoughtId) moveThoughtToFolder(thoughtId, null);
+      });
+      folderSidebar.appendChild(allBtn);
+
+      // User folders
+      folders.forEach(folder => {
+        const count = thoughts.filter(t => t.folderId === folder.id).length;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'folder-item-wrapper';
+
+        const btn = document.createElement('button');
+        btn.className = 'folder-item' + (activeFolderId === folder.id ? ' folder-item--active' : '');
+        btn.textContent = folder.name;
+        const countEl = document.createElement('span');
+        countEl.className = 'folder-item-count';
+        countEl.textContent = count;
+        btn.appendChild(countEl);
+        btn.addEventListener('click', () => {
+          activeFolderId = folder.id;
+          renderFolders();
+          renderEntries();
+        });
+        // Drop target
+        btn.addEventListener('dragover', (e) => { e.preventDefault(); btn.classList.add('folder-item--drag-over'); });
+        btn.addEventListener('dragleave', () => { btn.classList.remove('folder-item--drag-over'); });
+        btn.addEventListener('drop', (e) => {
+          e.preventDefault();
+          btn.classList.remove('folder-item--drag-over');
+          const thoughtId = e.dataTransfer.getData('text/plain');
+          if (thoughtId) moveThoughtToFolder(thoughtId, folder.id);
+        });
+        wrapper.appendChild(btn);
+
+        // "..." menu
+        const menuWrap = document.createElement('div');
+        menuWrap.className = 'folder-item-menu';
+        const menuBtn = document.createElement('button');
+        menuBtn.className = 'folder-item-menu-btn';
+        menuBtn.textContent = '\u2026';
+        menuBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleFolderMenu(menuWrap, folder);
+        });
+        menuWrap.appendChild(menuBtn);
+        wrapper.appendChild(menuWrap);
+
+        folderSidebar.appendChild(wrapper);
+      });
+
+      // "+ New folder"
+      const addWrap = document.createElement('div');
+      addWrap.className = 'folder-add';
+      const addBtn = document.createElement('button');
+      addBtn.className = 'folder-add-btn';
+      addBtn.textContent = '+ New folder';
+      addBtn.addEventListener('click', () => {
+        addBtn.hidden = true;
+        addForm.hidden = false;
+        addInput.value = '';
+        addInput.focus();
+      });
+      addWrap.appendChild(addBtn);
+
+      const addForm = document.createElement('div');
+      addForm.className = 'folder-add-input';
+      addForm.hidden = true;
+      const addInput = document.createElement('input');
+      addInput.type = 'text';
+      addInput.className = 'folder-name-input';
+      addInput.placeholder = 'folder name';
+      addInput.maxLength = 30;
+      addInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const name = addInput.value.trim();
+          if (name) {
+            createFolder(name);
+            addForm.hidden = true;
+            addBtn.hidden = false;
+          }
+        } else if (e.key === 'Escape') {
+          addForm.hidden = true;
+          addBtn.hidden = false;
+        }
+      });
+      addInput.addEventListener('blur', () => {
+        addForm.hidden = true;
+        addBtn.hidden = false;
+      });
+      addForm.appendChild(addInput);
+      addWrap.appendChild(addForm);
+
+      folderSidebar.appendChild(addWrap);
+    }
+
+    function toggleFolderMenu(wrapper, folder) {
+      document.querySelectorAll('.folder-dropdown').forEach(el => el.remove());
+
+      const dropdown = document.createElement('div');
+      dropdown.className = 'folder-dropdown';
+
+      const renameBtn = document.createElement('button');
+      renameBtn.className = 'folder-dropdown-item';
+      renameBtn.textContent = 'Rename';
+      renameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.remove();
+        startRenameFolder(folder);
+      });
+      dropdown.appendChild(renameBtn);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'folder-dropdown-item folder-dropdown-item--danger';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.remove();
+        confirmDeleteFolder(folder);
+      });
+      dropdown.appendChild(deleteBtn);
+
+      wrapper.appendChild(dropdown);
+
+      const closeMenu = (ev) => {
+        if (!wrapper.contains(ev.target)) {
+          dropdown.remove();
+          document.removeEventListener('click', closeMenu);
+        }
+      };
+      setTimeout(() => document.addEventListener('click', closeMenu), 0);
+    }
+
+    function startRenameFolder(folder) {
+      const name = prompt('Rename folder:', folder.name);
+      if (name !== null && name.trim()) {
+        folder.name = name.trim();
+        renderFolders();
+        persistToGitHub();
+      }
+    }
+
+    function confirmDeleteFolder(folder) {
+      const count = thoughts.filter(t => t.folderId === folder.id).length;
+      const msg = count > 0
+        ? `Delete "${folder.name}"? ${count} thought${count > 1 ? 's' : ''} will be unfiled.`
+        : `Delete "${folder.name}"?`;
+      if (confirm(msg)) {
+        deleteFolder(folder);
+      }
+    }
+
+    // ── Folder CRUD ──
+    async function createFolder(name) {
+      const folder = { id: crypto.randomUUID(), name, createdAt: Date.now() };
+      folders.push(folder);
+      console.log('[Space] Folder created:', name, folder.id);
+      renderFolders();
+      await persistToGitHub();
+    }
+
+    async function deleteFolder(folder) {
+      thoughts.forEach(t => { if (t.folderId === folder.id) t.folderId = null; });
+      folders = folders.filter(f => f.id !== folder.id);
+      if (activeFolderId === folder.id) activeFolderId = null;
+      console.log('[Space] Folder deleted:', folder.name);
+      renderFolders();
+      renderEntries();
+      await persistToGitHub();
+    }
+
+    async function moveThoughtToFolder(thoughtId, folderId) {
+      const t = thoughts.find(x => x.id === thoughtId);
+      if (!t) return;
+      t.folderId = folderId;
+      t.updatedAt = Date.now();
+      const folderName = getFolderName(folderId);
+      console.log('[Space] Moved thought', thoughtId, 'to', folderName || '(unfiled)');
+      renderFolders();
+      renderEntries();
+      await persistToGitHub();
     }
 
     // ── Persist to GitHub ──
     async function persistToGitHub() {
-      console.log('[Space] persistToGitHub called, thoughts count:', thoughts.length);
       const creds = getCreds();
-      if (!creds) { console.error('[Space] persistToGitHub: no credentials in localStorage'); showSaveStatus('error', 'missing credentials'); return; }
-      if (!cryptoKey) { console.error('[Space] persistToGitHub: cryptoKey is null — PIN not entered?'); showSaveStatus('error', 'not unlocked'); return; }
-      if (!currentSalt) { console.error('[Space] persistToGitHub: currentSalt is null'); showSaveStatus('error', 'no encryption key'); return; }
-      if (saving) { console.warn('[Space] persistToGitHub: already in progress, skipping'); return; }
+      if (!creds) { showSaveStatus('error', 'missing credentials'); return; }
+      if (!cryptoKey) { showSaveStatus('error', 'not unlocked'); return; }
+      if (!currentSalt) { showSaveStatus('error', 'no encryption key'); return; }
+      if (saving) return;
 
       saving = true;
       saveBtn.disabled = true;
       showSaveStatus('saving');
 
       try {
-        const enc = await encryptThoughts(thoughts, cryptoKey);
+        const enc = await encryptPayload({ thoughts, folders }, cryptoKey);
         const payload = {
           version: 1,
           updatedAt: Date.now(),
@@ -526,21 +736,17 @@
           ciphertext: enc.ciphertext
         };
 
-        // Fetch fresh SHA for first attempt
         let sha = currentSha;
         try {
           const fresh = await githubFetch(creds.user, creds.repo, creds.token);
           if (fresh) {
             sha = fresh.sha;
             console.log('[Space] Attempt 1 SHA:', sha);
-          } else {
-            console.warn('[Space] githubFetch returned null — file may not exist yet');
           }
         } catch (e) {
-          console.warn('[Space] Could not fetch fresh SHA, using cached:', currentSha, '— error:', e.message);
+          console.warn('[Space] Could not fetch fresh SHA, using cached:', currentSha);
         }
 
-        // Up to 3 attempts
         let result = null;
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
@@ -550,25 +756,16 @@
             break;
           } catch (e) {
             if ((e.status === 409 || e.status === 422) && attempt < 3) {
-              console.warn('[Space] SHA conflict on attempt', attempt, '(' + e.status + '), fetching fresh SHA for retry...');
+              console.warn('[Space] SHA conflict on attempt', attempt, ', retrying...');
               await new Promise(r => setTimeout(r, 300));
               try {
                 const fresh = await githubFetch(creds.user, creds.repo, creds.token);
                 sha = fresh ? fresh.sha : null;
                 console.log('[Space] Retry SHA:', sha);
-              } catch (fetchErr) {
-                console.warn('[Space] Retry fetch failed:', fetchErr.message, '— retrying with same SHA');
-              }
+              } catch { /* keep same SHA */ }
             } else {
-              // Non-retryable error or last attempt exhausted
-              console.error('[Space] Save failed on attempt', attempt + ':', e);
-              if (e.status === 401 || e.status === 403) {
-                showSaveStatus('error', 'token issue — check GitHub token permissions');
-              } else if (e.status === 0) {
-                showSaveStatus('error', 'check your connection');
-              } else {
-                showSaveStatus('error', 'save failed (HTTP ' + e.status + ')');
-              }
+              console.error('[Space] Save failed:', e);
+              showSaveStatus('error', e.status ? 'save failed (HTTP ' + e.status + ')' : 'check your connection');
               return;
             }
           }
@@ -586,11 +783,16 @@
       }
     }
 
-    // ── Render Entries (full rebuild) ──
+    // ── Render Entries ──
     function renderEntries() {
       entriesEl.innerHTML = '';
 
-      if (thoughts.length === 0) {
+      const filtered = thoughts.filter(t => {
+        if (activeFolderId !== null && t.folderId !== activeFolderId) return false;
+        return true;
+      });
+
+      if (filtered.length === 0 && thoughts.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
         empty.innerHTML = '<p>nothing here yet \u2014 your first thought will start the list.</p>';
@@ -598,7 +800,15 @@
         return;
       }
 
-      const sorted = [...thoughts].sort((a, b) => b.createdAt - a.createdAt);
+      if (filtered.length === 0 && activeFolderId !== null) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.innerHTML = '<p>no thoughts in this folder.</p>';
+        entriesEl.appendChild(empty);
+        return;
+      }
+
+      const sorted = [...filtered].sort((a, b) => b.createdAt - a.createdAt);
 
       sorted.forEach(t => {
         const article = createEntryElement(t);
@@ -612,6 +822,20 @@
       const article = document.createElement('article');
       article.className = 'entry';
       article.dataset.id = t.id;
+      article.draggable = true;
+
+      // Drag handlers
+      article.addEventListener('dragstart', (e) => {
+        draggedThoughtId = t.id;
+        article.classList.add('entry--dragging');
+        e.dataTransfer.setData('text/plain', t.id);
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      article.addEventListener('dragend', () => {
+        article.classList.remove('entry--dragging');
+        draggedThoughtId = null;
+        document.querySelectorAll('.folder-item--drag-over').forEach(el => el.classList.remove('folder-item--drag-over'));
+      });
 
       const row = document.createElement('div');
       row.className = 'entry-row';
@@ -633,6 +857,15 @@
         tagEl.className = 'entry-tag';
         tagEl.textContent = t.tag;
         row.appendChild(tagEl);
+      }
+      if (t.folderId) {
+        const folderName = getFolderName(t.folderId);
+        if (folderName) {
+          const folderEl = document.createElement('span');
+          folderEl.className = 'entry-folder';
+          folderEl.textContent = folderName;
+          row.appendChild(folderEl);
+        }
       }
       row.appendChild(excerpt);
 
@@ -665,6 +898,37 @@
 
       actions.appendChild(editBtn);
       actions.appendChild(deleteBtn);
+
+      // "Move to..." dropdown
+      const moveWrapper = document.createElement('div');
+      moveWrapper.className = 'entry-move-wrapper';
+      const moveSelect = document.createElement('select');
+      moveSelect.className = 'entry-move-select';
+      const unfiledOpt = document.createElement('option');
+      unfiledOpt.value = '';
+      unfiledOpt.textContent = 'Move to...';
+      moveSelect.appendChild(unfiledOpt);
+      const noneOpt = document.createElement('option');
+      noneOpt.value = '__unfiled__';
+      noneOpt.textContent = 'Unfiled';
+      moveSelect.appendChild(noneOpt);
+      folders.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.id;
+        opt.textContent = f.name;
+        if (t.folderId === f.id) opt.selected = true;
+        moveSelect.appendChild(opt);
+      });
+      moveSelect.addEventListener('change', (e) => {
+        e.stopPropagation();
+        const val = moveSelect.value;
+        if (val === '') return;
+        moveThoughtToFolder(t.id, val === '__unfiled__' ? null : val);
+      });
+      moveSelect.addEventListener('click', (e) => e.stopPropagation());
+      moveWrapper.appendChild(moveSelect);
+      actions.appendChild(moveWrapper);
+
       content.appendChild(actions);
 
       const confirm = document.createElement('div');
@@ -773,6 +1037,7 @@
       thoughts = thoughts.filter(t => t.id !== id);
       editingId = null;
       saveBtn.textContent = 'Save thought';
+      renderFolders();
       renderEntries();
       await persistToGitHub();
     }
@@ -799,13 +1064,15 @@
           createdAt: Date.now(),
           updatedAt: Date.now(),
           tag,
-          body
+          body,
+          folderId: activeFolderId
         });
       }
 
       triggerPulse();
       thoughtInput.value = '';
       tagInput.value = '';
+      renderFolders();
       renderEntries();
       await persistToGitHub();
     });

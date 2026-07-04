@@ -284,6 +284,195 @@ main {
   gap: 0.25rem;
 }
 
+/* ── Folder Sidebar ── */
+.folder-sidebar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  align-items: center;
+}
+
+.folder-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--pencil) 30%, transparent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--pencil);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: border-color 200ms ease, color 200ms ease, background 200ms ease;
+}
+
+.folder-item:hover {
+  border-color: var(--pencil);
+  color: var(--graphite);
+}
+
+.folder-item--active {
+  border-color: var(--lichen);
+  color: var(--lichen);
+  background: color-mix(in srgb, var(--lichen) 8%, transparent);
+}
+
+.folder-item-count {
+  font-size: 0.6875rem;
+  opacity: 0.6;
+}
+
+.folder-item-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+
+.folder-item-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.folder-item-menu-btn {
+  padding: 0.25rem 0.3rem;
+  border: none;
+  background: none;
+  color: var(--pencil);
+  font-size: 0.875rem;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: opacity 200ms;
+  line-height: 1;
+}
+
+.folder-item-menu-btn:hover {
+  opacity: 1;
+}
+
+.folder-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 20;
+  min-width: 100px;
+  padding: 0.25rem 0;
+  border: 1px solid color-mix(in srgb, var(--pencil) 30%, transparent);
+  border-radius: 6px;
+  background: var(--paper);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.folder-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  border: none;
+  background: none;
+  color: var(--graphite);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.folder-dropdown-item:hover {
+  background: color-mix(in srgb, var(--pencil) 10%, transparent);
+}
+
+.folder-dropdown-item--danger {
+  color: var(--ember);
+}
+
+.folder-add {
+  display: inline-flex;
+  align-items: center;
+}
+
+.folder-add-btn {
+  padding: 0.35rem 0.75rem;
+  border: 1px dashed color-mix(in srgb, var(--pencil) 30%, transparent);
+  border-radius: 6px;
+  background: none;
+  color: var(--pencil);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: border-color 200ms ease, color 200ms ease;
+}
+
+.folder-add-btn:hover {
+  border-color: var(--pencil);
+  color: var(--graphite);
+}
+
+.folder-add-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.folder-name-input {
+  padding: 0.35rem 0.625rem;
+  border: 1px solid var(--lichen);
+  border-radius: 6px;
+  background: transparent;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.8125rem;
+  color: var(--graphite);
+  outline: none;
+  width: 140px;
+}
+
+.folder-name-input:focus {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lichen) 25%, transparent);
+}
+
+/* ── Entry Folder Label ── */
+.entry-folder {
+  font-size: 0.625rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--pencil) 12%, transparent);
+  color: var(--pencil);
+  font-family: 'IBM Plex Sans', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Entry Move Dropdown ── */
+.entry-move-wrapper {
+  margin-left: auto;
+}
+
+.entry-move-select {
+  padding: 0.2rem 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--pencil) 30%, transparent);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--pencil);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.6875rem;
+  cursor: pointer;
+}
+
+.entry-move-select:hover {
+  border-color: var(--pencil);
+}
+
+/* ── Drag States ── */
+.entry--dragging {
+  opacity: 0.4;
+}
+
+.folder-item--drag-over {
+  border-color: var(--lichen) !important;
+  background: color-mix(in srgb, var(--lichen) 12%, transparent) !important;
+}
+
 .entry {
   display: flex;
   flex-direction: column;
@@ -555,6 +744,20 @@ main {
 
 [data-theme="dark"] .entry--expanded .entry-delete-confirm {
   color: #A8A399;
+}
+
+[data-theme="dark"] .entry--expanded .entry-folder {
+  background: rgba(168,163,153,0.15);
+  color: #C5D6B8;
+}
+
+[data-theme="dark"] .entry--expanded .entry-move-select {
+  border-color: rgba(232,229,220,0.3);
+  color: #E8E5DC;
+}
+
+[data-theme="dark"] .entry--expanded .entry-move-select:hover {
+  border-color: #E8E5DC;
 }
 
 /* ── Empty State ── */
