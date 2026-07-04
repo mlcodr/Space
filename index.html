@@ -27,7 +27,7 @@
     </svg>
   </button>
 
-  <div class="setup-screen" id="setupScreen">
+  <div class="setup-screen setup-screen--hidden" id="setupScreen">
     <div class="setup-card">
       <h1 class="setup-title">Space</h1>
       <p class="setup-subtitle">connect to your GitHub repo</p>
@@ -423,7 +423,6 @@
         if (isResetMode) {
           const salt = generateSalt();
           currentSalt = salt;
-          localStorage.setItem('space-salt', bufferToBase64(salt));
 
           cryptoKey = await deriveKey(pin, salt);
           const enc = await encryptThoughts([], cryptoKey);
@@ -463,7 +462,6 @@
           // First use — no file yet, derive key and show security setup
           const salt = generateSalt();
           currentSalt = salt;
-          localStorage.setItem('space-salt', bufferToBase64(salt));
 
           cryptoKey = await deriveKey(pin, salt);
           thoughts = [];
@@ -475,7 +473,6 @@
         // File exists — use stored salt from JSON
         const storedSalt = base64ToBuffer(remoteData.content.salt);
         currentSalt = new Uint8Array(storedSalt);
-        localStorage.setItem('space-salt', remoteData.content.salt);
 
         cryptoKey = await deriveKey(pin, currentSalt);
         const decrypted = await decryptThoughts(remoteData.content.ciphertext, remoteData.content.iv, cryptoKey);
@@ -614,7 +611,7 @@
 
     // ── Init flow ──
     const hasCreds = !!getCreds();
-    console.log('[Space] Init — creds:', hasCreds);
+    console.log(hasCreds ? '[Space] Startup: credentials found' : '[Space] Startup: no credentials found');
     if (!hasCreds) {
       showSetup();
     } else {
