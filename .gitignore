@@ -1,0 +1,14 @@
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+*.token
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.vscode/
+.idea/

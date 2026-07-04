@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Space</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;500&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+    <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/>
+      <line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/>
+      <line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+
+  <div class="pin-screen" id="pinScreen">
+    <div class="pin-card">
+      <h1 class="pin-title">Space</h1>
+      <p class="pin-subtitle">enter your PIN</p>
+      <input type="password" class="pin-input" id="pinInput" inputmode="numeric" pattern="[0-9]*" placeholder="\u2022\u2022\u2022\u2022" maxlength="16" autocomplete="off">
+      <button class="pin-btn" id="pinBtn">Enter</button>
+    </div>
+  </div>
+
+  <main id="main" hidden>
+    <div class="glow"></div>
+
+    <div class="page" id="page">
+      <div class="page-header">
+        <time class="timestamp" id="timestamp"></time>
+      </div>
+      <input class="tag-input" id="tagInput" type="text" placeholder="add a tag (optional)" aria-label="Tag">
+      <textarea class="thought-input" id="thoughtInput" placeholder="what's on your mind?" aria-label="Write your thoughts"></textarea>
+      <button class="save-btn" id="saveBtn">Save thought</button>
+    </div>
+
+    <hr class="divider">
+
+    <div class="controls">
+      <div class="search-wrapper">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="search" class="search-input" id="searchInput" placeholder="search your thoughts">
+      </div>
+    </div>
+
+    <div class="entries" id="entries"></div>
+  </main>
+
+  <script>
+    // ── Theme Toggle ──
+    const toggle = document.getElementById('themeToggle');
+    const root = document.documentElement;
+    const savedTheme = localStorage.getItem('space-theme');
+    if (savedTheme) root.setAttribute('data-theme', savedTheme);
+
+    toggle.addEventListener('click', () => {
+      const current = root.getAttribute('data-theme');
+      const next = current === 'light' ? 'dark' : 'light';
+      root.setAttribute('data-theme', next);
+      localStorage.setItem('space-theme', next);
+    });
+
+    // ── Crypto Helpers ──
+    const FIXED_SALT = new TextEncoder().encode('space-journal-salt-v1');
+
+    function bufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary);
+    }
+
+    function base64ToBuffer(base64) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+
+    // ── Crypto Functions ──
+    async function deriveKey(pin) {
+      const pinBuffer = new TextEncoder().encode(pin);
+      const pinKey = await crypto.subtle.importKey(
+        'raw',
+        pinBuffer,
+        { name: 'PBKDF2' },
+        false,
+        ['deriveKey']
+      );
+
+      return crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          salt: FIXED_SALT,
+          iterations: 100000,
+          hash: 'SHA-256'
+        },
+        pinKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+      );
+    }
+
+    async function encryptThoughts(thoughts, key) {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const plaintext = new TextEncoder().encode(JSON.stringify(thoughts));
+
+      const ciphertext = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        plaintext
+      );
+
+      return {
+        ciphertext: bufferToBase64(ciphertext),
+        iv: bufferToBase64(iv)
+      };
+    }
+
+    async function decryptThoughts(ciphertext, iv, key) {
+      try {
+        const ciphertextBuffer = base64ToBuffer(ciphertext);
+        const ivBuffer = base64ToBuffer(iv);
+
+        const plaintext = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: new Uint8Array(ivBuffer) },
+          key,
+          ciphertextBuffer
+        );
+
+        const decoded = new TextDecoder().decode(plaintext);
+        return JSON.parse(decoded);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // ── PIN Screen ──
+    const pinScreen = document.getElementById('pinScreen');
+    const pinInput = document.getElementById('pinInput');
+    const pinBtn = document.getElementById('pinBtn');
+    const mainEl = document.getElementById('main');
+    let cryptoKey = null;
+
+    async function handlePinSubmit() {
+      const pin = pinInput.value.trim();
+      if (!pin) return;
+
+      pinBtn.disabled = true;
+      pinBtn.textContent = 'Deriving key\u2026';
+
+      try {
+        cryptoKey = await deriveKey(pin);
+
+        // Round-trip test
+        const testThoughts = [
+          { id: 'test-1', createdAt: Date.now(), updatedAt: Date.now(), tag: 'test', body: 'Round-trip encryption test' }
+        ];
+
+        const encrypted = await encryptThoughts(testThoughts, cryptoKey);
+        console.log('[Space] Encrypted ciphertext:', encrypted.ciphertext.slice(0, 60) + '\u2026');
+
+        const decrypted = await decryptThoughts(encrypted.ciphertext, encrypted.iv, cryptoKey);
+        const pass = JSON.stringify(decrypted) === JSON.stringify(testThoughts);
+        console.log('[Space] Decryption round-trip:', pass ? 'PASS' : 'FAIL');
+
+        if (!pass) {
+          console.error('[Space] Expected:', testThoughts);
+          console.error('[Space] Got:', decrypted);
+        }
+
+        // Also test with the actual (empty) thoughts array
+        const encryptedEmpty = await encryptThoughts(thoughts, cryptoKey);
+        const decryptedEmpty = await decryptThoughts(encryptedEmpty.ciphertext, encryptedEmpty.iv, cryptoKey);
+        const emptyPass = JSON.stringify(decryptedEmpty) === JSON.stringify(thoughts);
+        console.log('[Space] Empty array round-trip:', emptyPass ? 'PASS' : 'FAIL');
+
+        // Reveal journal
+        pinScreen.classList.add('pin-screen--hidden');
+        mainEl.hidden = false;
+
+        setTimestamp();
+        renderEntries();
+      } catch (e) {
+        console.error('[Space] Crypto error:', e);
+        pinBtn.textContent = 'Enter';
+        pinBtn.disabled = false;
+      }
+    }
+
+    pinBtn.addEventListener('click', handlePinSubmit);
+    pinInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handlePinSubmit();
+    });
+
+    // Focus PIN input on load
+    setTimeout(() => pinInput.focus(), 100);
+
+    // ── State ──
+    let thoughts = [];
+    let editingId = null;
+
+    // ── DOM refs ──
+    const page = document.getElementById('page');
+    const timestamp = document.getElementById('timestamp');
+    const tagInput = document.getElementById('tagInput');
+    const thoughtInput = document.getElementById('thoughtInput');
+    const saveBtn = document.getElementById('saveBtn');
+    const searchInput = document.getElementById('searchInput');
+    const entriesEl = document.getElementById('entries');
+
+    // ── Helpers ──
+    function formatShortDate(ts) {
+      const d = new Date(ts);
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${months[d.getMonth()]} ${d.getDate()}`;
+    }
+
+    function truncate(str, len) {
+      if (str.length <= len) return str;
+      return str.slice(0, len).trimEnd() + '\u2026';
+    }
+
+    function formatTimeShort(ts) {
+      return new Date(ts).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      }).toLowerCase().replace(' ', '');
+    }
+
+    function setTimestamp() {
+      const now = new Date();
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      timestamp.textContent = `${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+      timestamp.setAttribute('datetime', now.toISOString().slice(0, 10));
+    }
+
+    // ── Save Pulse ──
+    function triggerPulse() {
+      page.classList.remove('page--pulse');
+      void page.offsetWidth;
+      page.classList.add('page--pulse');
+      page.addEventListener('animationend', () => {
+        page.classList.remove('page--pulse');
+      }, { once: true });
+    }
+
+    // ── Render Entries (full rebuild) ──
+    function renderEntries() {
+      entriesEl.innerHTML = '';
+
+      if (thoughts.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.innerHTML = '<p>nothing here yet \u2014 your first thought will start the list.</p>';
+        entriesEl.appendChild(empty);
+        return;
+      }
+
+      const sorted = [...thoughts].sort((a, b) => b.createdAt - a.createdAt);
+
+      sorted.forEach(t => {
+        const article = createEntryElement(t);
+        entriesEl.appendChild(article);
+      });
+
+      applyFilter();
+    }
+
+    function createEntryElement(t) {
+      const article = document.createElement('article');
+      article.className = 'entry';
+      article.dataset.id = t.id;
+
+      const row = document.createElement('div');
+      row.className = 'entry-row';
+      row.setAttribute('role', 'button');
+      row.setAttribute('tabindex', '0');
+
+      const dateEl = document.createElement('time');
+      dateEl.className = 'entry-date';
+      dateEl.setAttribute('datetime', new Date(t.createdAt).toISOString());
+      dateEl.textContent = formatShortDate(t.createdAt) + ' \u00b7 ' + formatTimeShort(t.createdAt);
+
+      const excerpt = document.createElement('p');
+      excerpt.className = 'entry-excerpt';
+      excerpt.textContent = truncate(t.body, 80);
+
+      row.appendChild(dateEl);
+      if (t.tag) {
+        const tagEl = document.createElement('span');
+        tagEl.className = 'entry-tag';
+        tagEl.textContent = t.tag;
+        row.appendChild(tagEl);
+      }
+      row.appendChild(excerpt);
+
+      const content = document.createElement('div');
+      content.className = 'entry-content';
+
+      const body = document.createElement('p');
+      body.className = 'entry-body';
+      body.textContent = t.body;
+      content.appendChild(body);
+
+      const actions = document.createElement('div');
+      actions.className = 'entry-actions';
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'entry-action-btn';
+      editBtn.textContent = 'Edit';
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startEdit(t.id);
+      });
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'entry-action-btn entry-action-btn--danger';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showDeleteConfirm(actions);
+      });
+
+      actions.appendChild(editBtn);
+      actions.appendChild(deleteBtn);
+      content.appendChild(actions);
+
+      const confirm = document.createElement('div');
+      confirm.className = 'entry-delete-confirm';
+      confirm.hidden = true;
+      confirm.innerHTML = '<span>are you sure?</span>';
+      const yesBtn = document.createElement('button');
+      yesBtn.className = 'confirm-yes';
+      yesBtn.textContent = 'yes';
+      yesBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteThought(t.id);
+      });
+      const noBtn = document.createElement('button');
+      noBtn.className = 'confirm-no';
+      noBtn.textContent = 'no';
+      noBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        hideDeleteConfirm(actions, confirm);
+      });
+      confirm.appendChild(yesBtn);
+      confirm.appendChild(noBtn);
+      content.appendChild(confirm);
+
+      article.appendChild(row);
+      article.appendChild(content);
+
+      row.addEventListener('click', () => toggleExpand(article));
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggleExpand(article);
+        }
+      });
+
+      return article;
+    }
+
+    // ── Filter (toggle visibility classes, CSS handles transition) ──
+    function applyFilter() {
+      const query = searchInput.value.toLowerCase().trim();
+      const entries = entriesEl.querySelectorAll('.entry');
+      let visibleCount = 0;
+
+      entries.forEach(article => {
+        const id = article.dataset.id;
+        const t = thoughts.find(x => x.id === id);
+        if (!t) return;
+
+        const matches = !query ||
+          t.body.toLowerCase().includes(query) ||
+          (t.tag && t.tag.toLowerCase().includes(query));
+
+        if (matches) {
+          article.classList.remove('entry--hidden');
+          visibleCount++;
+        } else {
+          article.classList.add('entry--hidden');
+        }
+      });
+
+      const existingEmpty = entriesEl.querySelector('.empty-state');
+      if (visibleCount === 0 && thoughts.length > 0) {
+        if (!existingEmpty) {
+          const empty = document.createElement('div');
+          empty.className = 'empty-state';
+          empty.innerHTML = '<p>no matching thoughts found.</p>';
+          entriesEl.appendChild(empty);
+        }
+      } else if (existingEmpty && thoughts.length > 0) {
+        existingEmpty.remove();
+      }
+    }
+
+    // ── Expand / Collapse ──
+    function toggleExpand(article) {
+      const wasExpanded = article.classList.contains('entry--expanded');
+
+      document.querySelectorAll('.entry--expanded').forEach(el => {
+        el.classList.remove('entry--expanded');
+      });
+
+      if (!wasExpanded) {
+        article.classList.add('entry--expanded');
+      }
+    }
+
+    // ── Edit ──
+    function startEdit(id) {
+      const t = thoughts.find(x => x.id === id);
+      if (!t) return;
+      editingId = id;
+      thoughtInput.value = t.body;
+      tagInput.value = t.tag || '';
+      saveBtn.textContent = 'Update thought';
+      thoughtInput.focus();
+      page.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ── Delete ──
+    function showDeleteConfirm(actionsEl) {
+      actionsEl.hidden = true;
+      const confirmEl = actionsEl.nextElementSibling;
+      confirmEl.hidden = false;
+    }
+
+    function hideDeleteConfirm(actionsEl, confirmEl) {
+      confirmEl.hidden = true;
+      actionsEl.hidden = false;
+    }
+
+    function deleteThought(id) {
+      thoughts = thoughts.filter(t => t.id !== id);
+      editingId = null;
+      saveBtn.textContent = 'Save thought';
+      renderEntries();
+    }
+
+    // ── Save / Update ──
+    saveBtn.addEventListener('click', () => {
+      const body = thoughtInput.value.trim();
+      if (!body) return;
+
+      const tag = tagInput.value.trim() || null;
+
+      if (editingId) {
+        const t = thoughts.find(x => x.id === editingId);
+        if (t) {
+          t.body = body;
+          t.tag = tag;
+          t.updatedAt = Date.now();
+        }
+        editingId = null;
+        saveBtn.textContent = 'Save thought';
+      } else {
+        const thought = {
+          id: crypto.randomUUID(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          tag,
+          body
+        };
+        thoughts.push(thought);
+      }
+
+      triggerPulse();
+      thoughtInput.value = '';
+      tagInput.value = '';
+      renderEntries();
+    });
+
+    // ── Search (only toggle visibility, no DOM rebuild) ──
+    searchInput.addEventListener('input', () => applyFilter());
+  </script>
+</body>
+</html>
