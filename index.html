@@ -201,8 +201,9 @@
     }
 
     async function githubFetch(user, repo, token) {
-      const url = `${CONTENTS_API}/${user}/${repo}/contents/${FILE_PATH}`;
+      const url = `${CONTENTS_API}/${user}/${repo}/contents/${FILE_PATH}?_=${Date.now()}`;
       const res = await fetch(url, {
+        cache: 'no-store',
         headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' }
       });
       if (res.status === 404) return null;
@@ -525,60 +526,51 @@
           ciphertext: enc.ciphertext
         };
 
-        // Fetch fresh SHA
+        // Fetch fresh SHA for first attempt
         let sha = currentSha;
         try {
-          console.log('[Space] Fetching fresh SHA from GitHub...');
           const fresh = await githubFetch(creds.user, creds.repo, creds.token);
           if (fresh) {
             sha = fresh.sha;
-            console.log('[Space] Fresh SHA:', sha);
+            console.log('[Space] Attempt 1 SHA:', sha);
           } else {
-            console.warn('[Space] githubFetch returned null — file may not exist yet, creating new file');
+            console.warn('[Space] githubFetch returned null — file may not exist yet');
           }
         } catch (e) {
           console.warn('[Space] Could not fetch fresh SHA, using cached:', currentSha, '— error:', e.message);
         }
 
-        // First attempt
-        console.log('[Space] PUTting to GitHub with SHA:', sha);
-        let result;
-        try {
-          result = await githubSave(creds.user, creds.repo, creds.token, payload, sha);
-        } catch (e) {
-          // SHA conflict — re-fetch and retry once
-          if (e.status === 409 || e.status === 422) {
-            console.warn('[Space] SHA conflict (' + e.status + '), retrying with fresh SHA...');
-            showSaveStatus('saving');
-            try {
-              const fresh = await githubFetch(creds.user, creds.repo, creds.token);
-              const retrySha = fresh ? fresh.sha : null;
-              console.log('[Space] Retry SHA:', retrySha);
-              result = await githubSave(creds.user, creds.repo, creds.token, payload, retrySha);
-              console.log('[Space] Retry succeeded');
-            } catch (e2) {
-              console.error('[Space] Retry also failed:', e2);
-              if (e2.status === 401 || e2.status === 403) {
+        // Up to 3 attempts
+        let result = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            console.log('[Space] PUT attempt', attempt, 'with SHA:', sha);
+            result = await githubSave(creds.user, creds.repo, creds.token, payload, sha);
+            console.log('[Space] Attempt', attempt, 'succeeded');
+            break;
+          } catch (e) {
+            if ((e.status === 409 || e.status === 422) && attempt < 3) {
+              console.warn('[Space] SHA conflict on attempt', attempt, '(' + e.status + '), fetching fresh SHA for retry...');
+              await new Promise(r => setTimeout(r, 300));
+              try {
+                const fresh = await githubFetch(creds.user, creds.repo, creds.token);
+                sha = fresh ? fresh.sha : null;
+                console.log('[Space] Retry SHA:', sha);
+              } catch (fetchErr) {
+                console.warn('[Space] Retry fetch failed:', fetchErr.message, '— retrying with same SHA');
+              }
+            } else {
+              // Non-retryable error or last attempt exhausted
+              console.error('[Space] Save failed on attempt', attempt + ':', e);
+              if (e.status === 401 || e.status === 403) {
                 showSaveStatus('error', 'token issue — check GitHub token permissions');
-              } else if (e2.status === 0) {
+              } else if (e.status === 0) {
                 showSaveStatus('error', 'check your connection');
               } else {
-                showSaveStatus('error', 'save failed (HTTP ' + e2.status + ')');
+                showSaveStatus('error', 'save failed (HTTP ' + e.status + ')');
               }
               return;
             }
-          } else if (e.status === 401 || e.status === 403) {
-            console.error('[Space] Auth error:', e);
-            showSaveStatus('error', 'token issue — check GitHub token permissions');
-            return;
-          } else if (e.status === 0) {
-            console.error('[Space] Network error:', e);
-            showSaveStatus('error', 'check your connection');
-            return;
-          } else {
-            console.error('[Space] Save error:', e);
-            showSaveStatus('error', 'save failed (HTTP ' + e.status + ')');
-            return;
           }
         }
 
