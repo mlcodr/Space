@@ -56,36 +56,7 @@
       <input type="password" class="pin-input" id="pinInput" inputmode="numeric" pattern="[0-9]*" placeholder="••••" maxlength="16" autocomplete="off">
       <button class="pin-btn" id="pinBtn">Enter</button>
       <p class="pin-error" id="pinError" hidden></p>
-      <button class="pin-forgot" id="forgotPinBtn" hidden>Forgot PIN?</button>
-    </div>
-  </div>
-
-  <div class="pin-screen pin-screen--hidden" id="securitySetupScreen">
-    <div class="pin-card">
-      <h1 class="pin-title">Security Question</h1>
-      <p class="pin-subtitle">choose a question to recover your PIN later</p>
-      <select class="security-input" id="securityQ">
-        <option value="">Select a question...</option>
-        <option value="What is your cat's name?">What is your cat's name?</option>
-        <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
-        <option value="What was your first pet's name?">What was your first pet's name?</option>
-        <option value="What city were you born in?">What city were you born in?</option>
-        <option value="What is your favorite book?">What is your favorite book?</option>
-      </select>
-      <input type="text" class="security-input" id="securityA" placeholder="your answer" autocomplete="off">
-      <button class="pin-btn" id="securitySetupBtn">Save</button>
-      <p class="pin-error" id="securitySetupError" hidden></p>
-    </div>
-  </div>
-
-  <div class="pin-screen pin-screen--hidden" id="forgotPinScreen">
-    <div class="pin-card">
-      <h1 class="pin-title">Recover PIN</h1>
-      <p class="pin-subtitle" id="forgotQuestion"></p>
-      <input type="text" class="security-input" id="forgotAnswer" placeholder="your answer" autocomplete="off">
-      <button class="pin-btn" id="forgotVerifyBtn">Verify</button>
-      <p class="pin-error" id="forgotError" hidden></p>
-      <button class="pin-forgot" id="forgotBackBtn">Back to PIN</button>
+      <p class="pin-warning">There is no way to recover this PIN if forgotten \u2014 write it down somewhere safe.</p>
     </div>
   </div>
 
@@ -115,27 +86,6 @@
     </div>
 
     <div class="entries" id="entries"></div>
-
-    <div class="recovery-section" id="recoverySection">
-      <button class="recovery-link" id="recoveryLink">set up recovery</button>
-      <div class="recovery-form" id="recoveryForm" hidden>
-        <p class="recovery-subtitle">choose a question to recover your PIN later</p>
-        <select class="security-input" id="recoveryQ">
-          <option value="">Select a question...</option>
-          <option value="What is your cat's name?">What is your cat's name?</option>
-          <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
-          <option value="What was your first pet's name?">What was your first pet's name?</option>
-          <option value="What city were you born in?">What city were you born in?</option>
-          <option value="What is your favorite book?">What is your favorite book?</option>
-        </select>
-        <input type="text" class="security-input" id="recoveryA" placeholder="your answer" autocomplete="off">
-        <div class="recovery-actions">
-          <button class="pin-btn recovery-save" id="recoverySaveBtn">Save</button>
-          <button class="recovery-cancel" id="recoveryCancelBtn">cancel</button>
-        </div>
-        <p class="pin-error" id="recoveryError" hidden></p>
-      </div>
-    </div>
   </main>
 
   <script>
@@ -318,9 +268,6 @@
       } else if (state === 'error') {
         saveStatus.classList.add('save-status--error');
         saveStatus.textContent = msg || 'save failed';
-      } else if (state === 'pin-error') {
-        saveStatus.classList.add('save-status--error');
-        saveStatus.textContent = 'incorrect PIN';
       }
     }
 
@@ -332,34 +279,10 @@
     const setupBtn = document.getElementById('setupBtn');
     const setupError = document.getElementById('setupError');
     const pinScreen = document.getElementById('pinScreen');
-    const securitySetupScreen = document.getElementById('securitySetupScreen');
-    const securityQ = document.getElementById('securityQ');
-    const securityA = document.getElementById('securityA');
-    const securitySetupBtn = document.getElementById('securitySetupBtn');
-    const securitySetupError = document.getElementById('securitySetupError');
-    const forgotPinScreen = document.getElementById('forgotPinScreen');
-    const forgotQuestion = document.getElementById('forgotQuestion');
-    const forgotAnswer = document.getElementById('forgotAnswer');
-    const forgotVerifyBtn = document.getElementById('forgotVerifyBtn');
-    const forgotError = document.getElementById('forgotError');
-    const forgotBackBtn = document.getElementById('forgotBackBtn');
-    const forgotPinBtn = document.getElementById('forgotPinBtn');
-    let isResetMode = false;
-    let resetSha = null;
-    let cachedSecurityQ = null;
-    let cachedSecurityHash = null;
-
-    async function hashAnswer(answer) {
-      const encoded = new TextEncoder().encode(answer.trim());
-      const hash = await crypto.subtle.digest('SHA-256', encoded);
-      return bufferToBase64(new Uint8Array(hash));
-    }
 
     function hideAllScreens() {
       setupScreen.classList.add('setup-screen--hidden');
       pinScreen.classList.add('pin-screen--hidden');
-      securitySetupScreen.classList.add('pin-screen--hidden');
-      forgotPinScreen.classList.add('pin-screen--hidden');
     }
 
     function showSetup() {
@@ -414,7 +337,6 @@
     const pinInput = document.getElementById('pinInput');
     const pinBtn = document.getElementById('pinBtn');
     const pinError = document.getElementById('pinError');
-    const pinSubtitle = document.querySelector('.pin-subtitle');
     const mainEl = document.getElementById('main');
     let cryptoKey = null;
     let currentSalt = null;
@@ -435,39 +357,11 @@
 
       hidePinError();
       pinBtn.disabled = true;
-      pinBtn.textContent = isResetMode ? 'Setting up\u2026' : 'Unlocking\u2026';
+      pinBtn.textContent = 'Unlocking\u2026';
 
       try {
         const creds = getCreds();
         if (!creds) { showSetup(); return; }
-
-        if (isResetMode) {
-          const salt = generateSalt();
-          currentSalt = salt;
-
-          cryptoKey = await deriveKey(pin, salt);
-          const enc = await encryptThoughts([], cryptoKey);
-          const payload = {
-            version: 1, updatedAt: Date.now(),
-            salt: bufferToBase64(salt), iv: enc.iv, ciphertext: enc.ciphertext,
-            securityQuestion: cachedSecurityQ, securityAnswerHash: cachedSecurityHash
-          };
-
-          let sha = null;
-          try {
-            const fresh = await githubFetch(creds.user, creds.repo, creds.token);
-            if (fresh) sha = fresh.sha;
-          } catch { /* new file or fetch error — save without SHA */ }
-
-          const result = await githubSave(creds.user, creds.repo, creds.token, payload, sha);
-          currentSha = result.content.sha;
-          thoughts = [];
-          isResetMode = false;
-          resetSha = null;
-          pinSubtitle.textContent = 'enter your PIN';
-          revealJournal();
-          return;
-        }
 
         // Fetch from GitHub
         let remoteData = null;
@@ -480,14 +374,30 @@
         }
 
         if (!remoteData) {
-          // First use — no file yet, derive key and show security setup
+          // First use — no file yet, create it
           const salt = generateSalt();
           currentSalt = salt;
 
           cryptoKey = await deriveKey(pin, salt);
+          const enc = await encryptThoughts([], cryptoKey);
+          const payload = {
+            version: 1,
+            updatedAt: Date.now(),
+            salt: bufferToBase64(salt),
+            iv: enc.iv,
+            ciphertext: enc.ciphertext
+          };
+
+          let sha = null;
+          try {
+            const fresh = await githubFetch(creds.user, creds.repo, creds.token);
+            if (fresh) sha = fresh.sha;
+          } catch { /* new file — save without SHA */ }
+
+          const result = await githubSave(creds.user, creds.repo, creds.token, payload, sha);
+          currentSha = result.content.sha;
           thoughts = [];
-          hideAllScreens();
-          securitySetupScreen.classList.remove('pin-screen--hidden');
+          revealJournal();
           return;
         }
 
@@ -506,9 +416,6 @@
 
         thoughts = decrypted;
         currentSha = remoteData.sha;
-        cachedSecurityQ = remoteData.content.securityQuestion || null;
-        cachedSecurityHash = remoteData.content.securityAnswerHash || null;
-        forgotPinBtn.hidden = !cachedSecurityQ;
         revealJournal();
       } catch (e) {
         console.error('[Space] Error:', e);
@@ -527,179 +434,11 @@
       mainEl.hidden = false;
       setTimestamp();
       renderEntries();
-      updateRecoveryLink();
     }
 
     pinBtn.addEventListener('click', handlePinSubmit);
     pinInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') handlePinSubmit();
-    });
-
-    securitySetupBtn.addEventListener('click', async () => {
-      const q = securityQ.value;
-      const a = securityA.value.trim();
-      if (!q) { securitySetupError.textContent = 'Please select a question.'; securitySetupError.hidden = false; return; }
-      if (!a) { securitySetupError.textContent = 'Please enter an answer.'; securitySetupError.hidden = false; return; }
-
-      securitySetupBtn.disabled = true;
-      securitySetupBtn.textContent = 'Saving\u2026';
-      securitySetupError.hidden = true;
-
-      try {
-        const creds = getCreds();
-        if (!creds) { showSetup(); return; }
-
-        const answerHash = await hashAnswer(a);
-        const enc = await encryptThoughts(thoughts, cryptoKey);
-        const payload = {
-          version: 1, updatedAt: Date.now(),
-          salt: bufferToBase64(currentSalt), iv: enc.iv, ciphertext: enc.ciphertext,
-          securityQuestion: q, securityAnswerHash: answerHash
-        };
-        const saved = await githubSave(creds.user, creds.repo, creds.token, payload, null);
-        currentSha = saved.content.sha;
-        cachedSecurityQ = q;
-        cachedSecurityHash = answerHash;
-        console.log('[Space] File created with security question:', q);
-        revealJournal();
-      } catch (e) {
-        console.error('[Space] Security setup error:', e);
-        securitySetupError.textContent = 'Save failed: ' + e.message;
-        securitySetupError.hidden = false;
-        securitySetupBtn.disabled = false;
-        securitySetupBtn.textContent = 'Save';
-      }
-    });
-
-    // ── Recovery Setup (from journal) ──
-    const recoveryLink = document.getElementById('recoveryLink');
-    const recoveryForm = document.getElementById('recoveryForm');
-    const recoveryQ = document.getElementById('recoveryQ');
-    const recoveryA = document.getElementById('recoveryA');
-    const recoverySaveBtn = document.getElementById('recoverySaveBtn');
-    const recoveryCancelBtn = document.getElementById('recoveryCancelBtn');
-    const recoveryError = document.getElementById('recoveryError');
-
-    function updateRecoveryLink() {
-      recoveryLink.hidden = !!cachedSecurityQ;
-    }
-
-    recoveryLink.addEventListener('click', () => {
-      recoveryForm.hidden = false;
-      recoveryLink.hidden = true;
-      recoveryError.hidden = true;
-      recoveryQ.value = '';
-      recoveryA.value = '';
-      recoveryQ.focus();
-    });
-
-    recoveryCancelBtn.addEventListener('click', () => {
-      recoveryForm.hidden = true;
-      updateRecoveryLink();
-    });
-
-    recoverySaveBtn.addEventListener('click', async () => {
-      const q = recoveryQ.value;
-      const a = recoveryA.value.trim();
-      if (!q) { recoveryError.textContent = 'Please select a question.'; recoveryError.hidden = false; return; }
-      if (!a) { recoveryError.textContent = 'Please enter an answer.'; recoveryError.hidden = false; return; }
-
-      recoverySaveBtn.disabled = true;
-      recoverySaveBtn.textContent = 'Saving\u2026';
-      recoveryError.hidden = true;
-
-      try {
-        const creds = getCreds();
-        if (!creds) { showSetup(); return; }
-
-        // Fetch current file
-        const remote = await githubFetch(creds.user, creds.repo, creds.token);
-        if (!remote) { throw new Error('File not found on GitHub'); }
-
-        // Patch only security fields — leave salt/iv/ciphertext untouched
-        const answerHash = await hashAnswer(a);
-        const payload = {
-          ...remote.content,
-          securityQuestion: q,
-          securityAnswerHash: answerHash
-        };
-
-        // Fetch fresh SHA and PUT
-        const saved = await githubSave(creds.user, creds.repo, creds.token, payload, remote.sha);
-        currentSha = saved.content.sha;
-        cachedSecurityQ = q;
-        cachedSecurityHash = answerHash;
-
-        recoveryForm.hidden = true;
-        recoveryLink.hidden = true;
-        console.log('[Space] Recovery question set:', q);
-      } catch (e) {
-        console.error('[Space] Recovery setup error:', e);
-        recoveryError.textContent = 'Save failed: ' + e.message;
-        recoveryError.hidden = false;
-        recoverySaveBtn.disabled = false;
-        recoverySaveBtn.textContent = 'Save';
-      }
-    });
-
-    forgotPinBtn.addEventListener('click', () => {
-      console.log('[Space] Forgot PIN — cached question:', cachedSecurityQ ? cachedSecurityQ.substring(0, 40) : '(none)');
-      if (cachedSecurityQ) {
-        forgotQuestion.textContent = cachedSecurityQ;
-      } else {
-        forgotQuestion.textContent = 'Recovery was never set up for this journal. You\'ll need to set a new PIN from the setup screen.';
-      }
-      hideAllScreens();
-      forgotPinScreen.classList.remove('pin-screen--hidden');
-      forgotAnswer.focus();
-    });
-
-    forgotVerifyBtn.addEventListener('click', async () => {
-      const a = forgotAnswer.value.trim();
-      if (!a) { forgotError.textContent = 'Please enter your answer.'; forgotError.hidden = false; return; }
-      forgotError.hidden = true;
-
-      if (!cachedSecurityHash) {
-        forgotError.textContent = 'No security answer on file. Recovery was never set up.';
-        forgotError.hidden = false;
-        return;
-      }
-
-      const inputHash = await hashAnswer(a);
-      const ok = inputHash === cachedSecurityHash;
-      console.log('[Space] verifySecurity: hash match =', ok);
-      if (!ok) { forgotError.textContent = 'Incorrect answer. Try again.'; forgotError.hidden = false; return; }
-
-      const creds = getCreds();
-      if (!creds) { showSetup(); return; }
-
-      let remoteData = null;
-      try {
-        remoteData = await githubFetch(creds.user, creds.repo, creds.token);
-      } catch (e) {
-        forgotError.textContent = 'GitHub error: ' + e.message;
-        forgotError.hidden = false;
-        return;
-      }
-
-      resetSha = remoteData ? remoteData.sha : null;
-      isResetMode = true;
-      hideAllScreens();
-      pinScreen.classList.remove('pin-screen--hidden');
-      pinSubtitle.textContent = 'create a new PIN';
-      pinInput.value = '';
-      forgotAnswer.value = '';
-      forgotPinBtn.hidden = true;
-      setTimeout(() => pinInput.focus(), 100);
-    });
-
-    forgotBackBtn.addEventListener('click', () => {
-      hideAllScreens();
-      pinScreen.classList.remove('pin-screen--hidden');
-      pinInput.value = '';
-      forgotAnswer.value = '';
-      forgotError.hidden = true;
-      setTimeout(() => pinInput.focus(), 100);
     });
 
     // ── Init flow ──
