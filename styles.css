@@ -329,6 +329,7 @@ main {
   display: inline-flex;
   align-items: center;
   gap: 0;
+  position: relative;
 }
 
 .folder-item-menu {

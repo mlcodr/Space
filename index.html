@@ -653,7 +653,6 @@
     function toggleFolderMenu(wrapper, folder) {
       document.querySelectorAll('.folder-dropdown').forEach(el => el.remove());
 
-      const chip = wrapper.querySelector('.folder-item');
       const dropdown = document.createElement('div');
       dropdown.className = 'folder-dropdown';
 
@@ -679,6 +678,13 @@
 
       wrapper.appendChild(dropdown);
 
+      // Overflow flip: if dropdown would go off right edge, align right instead
+      const rect = dropdown.getBoundingClientRect();
+      if (rect.right > window.innerWidth - 8) {
+        dropdown.style.left = 'auto';
+        dropdown.style.right = '0';
+      }
+
       const closeMenu = (ev) => {
         if (!wrapper.contains(ev.target)) {
           dropdown.remove();
@@ -698,12 +704,19 @@
       input.value = currentName;
       input.maxLength = 30;
 
-      const save = () => {
+      let saved = false;
+      const save = async () => {
+        if (saved) return;
         const newName = input.value.trim();
         if (newName && newName !== currentName) {
+          saved = true;
           folder.name = newName;
           renderFolders();
-          persistToGitHub();
+          const ok = await persistToGitHub();
+          if (!ok) {
+            folder.name = currentName;
+            renderFolders();
+          }
         } else {
           renderFolders();
         }
@@ -711,7 +724,7 @@
 
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); save(); }
-        else if (e.key === 'Escape') { renderFolders(); }
+        else if (e.key === 'Escape') { saved = true; renderFolders(); }
       });
       input.addEventListener('blur', save);
 
