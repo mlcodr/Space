@@ -259,6 +259,14 @@
     const saveStatus = document.getElementById('saveStatus');
     let saveStatusTimer = null;
 
+    function triggerPulse() {
+      const page = document.getElementById('page');
+      page.classList.remove('page--pulse');
+      void page.offsetWidth;
+      page.classList.add('page--pulse');
+      page.addEventListener('animationend', () => page.classList.remove('page--pulse'), { once: true });
+    }
+
     function showSaveStatus(state, msg) {
       clearTimeout(saveStatusTimer);
       saveStatus.className = 'save-status';
@@ -717,10 +725,10 @@
     // ── Persist to GitHub ──
     async function persistToGitHub() {
       const creds = getCreds();
-      if (!creds) { showSaveStatus('error', 'missing credentials'); return; }
-      if (!cryptoKey) { showSaveStatus('error', 'not unlocked'); return; }
-      if (!currentSalt) { showSaveStatus('error', 'no encryption key'); return; }
-      if (saving) return;
+      if (!creds) { showSaveStatus('error', 'missing credentials'); return false; }
+      if (!cryptoKey) { showSaveStatus('error', 'not unlocked'); return false; }
+      if (!currentSalt) { showSaveStatus('error', 'no encryption key'); return false; }
+      if (saving) return false;
 
       saving = true;
       saveBtn.disabled = true;
@@ -766,7 +774,7 @@
             } else {
               console.error('[Space] Save failed:', e);
               showSaveStatus('error', e.status ? 'save failed (HTTP ' + e.status + ')' : 'check your connection');
-              return;
+              return false;
             }
           }
         }
@@ -774,9 +782,11 @@
         currentSha = result.content.sha;
         console.log('[Space] Save successful, new SHA:', currentSha);
         showSaveStatus('saved');
+        return true;
       } catch (e) {
         console.error('[Space] Unexpected error:', e);
         showSaveStatus('error', 'save failed: ' + e.message);
+        return false;
       } finally {
         saving = false;
         saveBtn.disabled = false;
@@ -1051,30 +1061,50 @@
 
       if (editingId) {
         const t = thoughts.find(x => x.id === editingId);
-        if (t) {
-          t.body = body;
-          t.tag = tag;
-          t.updatedAt = Date.now();
-        }
+        if (!t) return;
+        const prevBody = t.body;
+        const prevTag = t.tag;
+        t.body = body;
+        t.tag = tag;
+        t.updatedAt = Date.now();
         editingId = null;
         saveBtn.textContent = 'Save thought';
+        renderFolders();
+        renderEntries();
+        const ok = await persistToGitHub();
+        if (ok) {
+          thoughtInput.value = '';
+          tagInput.value = '';
+          triggerPulse();
+        } else {
+          t.body = prevBody;
+          t.tag = prevTag;
+          editingId = t.id;
+          saveBtn.textContent = 'Update thought';
+          renderEntries();
+        }
       } else {
-        thoughts.push({
+        const newThought = {
           id: crypto.randomUUID(),
           createdAt: Date.now(),
           updatedAt: Date.now(),
           tag,
           body,
           folderId: activeFolderId
-        });
+        };
+        thoughts.push(newThought);
+        renderFolders();
+        renderEntries();
+        const ok = await persistToGitHub();
+        if (ok) {
+          thoughtInput.value = '';
+          tagInput.value = '';
+          triggerPulse();
+        } else {
+          thoughts = thoughts.filter(x => x.id !== newThought.id);
+          renderEntries();
+        }
       }
-
-      triggerPulse();
-      thoughtInput.value = '';
-      tagInput.value = '';
-      renderFolders();
-      renderEntries();
-      await persistToGitHub();
     });
 
     // ── Search ──
