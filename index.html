@@ -534,9 +534,8 @@
         renderFolders();
         renderEntries();
       });
-      // Drop target for "All thoughts"
       allBtn.addEventListener('dragover', (e) => { e.preventDefault(); allBtn.classList.add('folder-item--drag-over'); });
-      allBtn.addEventListener('dragleave', () => { allBtn.classList.remove('folder-item--drag-over'); });
+      allBtn.addEventListener('dragleave', () => allBtn.classList.remove('folder-item--drag-over'));
       allBtn.addEventListener('drop', (e) => {
         e.preventDefault();
         allBtn.classList.remove('folder-item--drag-over');
@@ -563,9 +562,8 @@
           renderFolders();
           renderEntries();
         });
-        // Drop target
         btn.addEventListener('dragover', (e) => { e.preventDefault(); btn.classList.add('folder-item--drag-over'); });
-        btn.addEventListener('dragleave', () => { btn.classList.remove('folder-item--drag-over'); });
+        btn.addEventListener('dragleave', () => btn.classList.remove('folder-item--drag-over'));
         btn.addEventListener('drop', (e) => {
           e.preventDefault();
           btn.classList.remove('folder-item--drag-over');
@@ -574,7 +572,7 @@
         });
         wrapper.appendChild(btn);
 
-        // "..." menu
+        // "..." menu — only appears on hover/click via the wrapper
         const menuWrap = document.createElement('div');
         menuWrap.className = 'folder-item-menu';
         const menuBtn = document.createElement('button');
@@ -590,47 +588,44 @@
         folderSidebar.appendChild(wrapper);
       });
 
-      // "+ New folder"
+      // "+" button — transforms to input on click
       const addWrap = document.createElement('div');
       addWrap.className = 'folder-add';
       const addBtn = document.createElement('button');
       addBtn.className = 'folder-add-btn';
-      addBtn.textContent = '+ New folder';
+      addBtn.textContent = '+';
       addBtn.addEventListener('click', () => {
         addBtn.hidden = true;
-        addForm.hidden = false;
+        addInput.hidden = false;
         addInput.value = '';
         addInput.focus();
       });
       addWrap.appendChild(addBtn);
 
-      const addForm = document.createElement('div');
-      addForm.className = 'folder-add-input';
-      addForm.hidden = true;
       const addInput = document.createElement('input');
       addInput.type = 'text';
       addInput.className = 'folder-name-input';
       addInput.placeholder = 'folder name';
       addInput.maxLength = 30;
+      addInput.hidden = true;
       addInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           const name = addInput.value.trim();
           if (name) {
             createFolder(name);
-            addForm.hidden = true;
+            addInput.hidden = true;
             addBtn.hidden = false;
           }
         } else if (e.key === 'Escape') {
-          addForm.hidden = true;
+          addInput.hidden = true;
           addBtn.hidden = false;
         }
       });
       addInput.addEventListener('blur', () => {
-        addForm.hidden = true;
+        addInput.hidden = true;
         addBtn.hidden = false;
       });
-      addForm.appendChild(addInput);
-      addWrap.appendChild(addForm);
+      addWrap.appendChild(addInput);
 
       folderSidebar.appendChild(addWrap);
     }

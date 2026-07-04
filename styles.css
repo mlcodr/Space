@@ -391,30 +391,30 @@ main {
 }
 
 .folder-add-btn {
-  padding: 0.35rem 0.75rem;
-  border: 1px dashed color-mix(in srgb, var(--pencil) 30%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--pencil) 20%, transparent);
   border-radius: 6px;
   background: none;
   color: var(--pencil);
-  font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 0.8125rem;
+  font-size: 1rem;
+  line-height: 1;
   cursor: pointer;
-  transition: border-color 200ms ease, color 200ms ease;
+  transition: border-color 200ms ease, color 200ms ease, background 200ms ease;
 }
 
 .folder-add-btn:hover {
   border-color: var(--pencil);
   color: var(--graphite);
-}
-
-.folder-add-input {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+  background: color-mix(in srgb, var(--pencil) 5%, transparent);
 }
 
 .folder-name-input {
-  padding: 0.35rem 0.625rem;
+  padding: 0.3rem 0.5rem;
   border: 1px solid var(--lichen);
   border-radius: 6px;
   background: transparent;
@@ -422,7 +422,9 @@ main {
   font-size: 0.8125rem;
   color: var(--graphite);
   outline: none;
-  width: 140px;
+  width: 120px;
+  height: 1.75rem;
+  box-sizing: border-box;
 }
 
 .folder-name-input:focus {
