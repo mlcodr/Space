@@ -516,44 +516,45 @@ main {
 }
 
 /* ── Dark mode: expanded entry contrast fix ── */
-/* Expanded bg is lighter (paper mix), so text/buttons need darker colors */
 [data-theme="dark"] .entry--expanded .entry-date {
-  color: var(--graphite);
+  color: #A8A399;
 }
 
 [data-theme="dark"] .entry--expanded .entry-excerpt,
 [data-theme="dark"] .entry--expanded .entry-body {
-  color: var(--graphite);
+  color: #E8E5DC;
 }
 
 [data-theme="dark"] .entry--expanded .entry-tag {
-  background: color-mix(in srgb, var(--lichen) 20%, transparent);
-  color: color-mix(in srgb, var(--lichen) 80%, var(--graphite));
+  background: rgba(111,135,104,0.25);
+  color: #C5D6B8;
 }
 
 [data-theme="dark"] .entry--expanded .entry-action-btn {
-  border-color: var(--graphite);
-  color: var(--graphite);
+  color: #E8E5DC;
+  border-color: #6B7A5E;
+  background: transparent;
 }
 
 [data-theme="dark"] .entry--expanded .entry-action-btn:hover {
-  border-color: var(--ink);
-  color: var(--ink);
+  background: rgba(107,122,94,0.15);
+  border-color: #6B7A5E;
+  color: #E8E5DC;
 }
 
 [data-theme="dark"] .entry--expanded .entry-action-btn--danger {
-  border-color: var(--ember);
-  color: var(--ember);
+  border-color: #D97757;
+  color: #D97757;
 }
 
 [data-theme="dark"] .entry--expanded .entry-action-btn--danger:hover {
-  border-color: var(--ember);
-  color: var(--ink);
-  background: color-mix(in srgb, var(--ember) 12%, transparent);
+  border-color: #D97757;
+  color: #D97757;
+  background: rgba(217,119,87,0.12);
 }
 
 [data-theme="dark"] .entry--expanded .entry-delete-confirm {
-  color: var(--graphite);
+  color: #A8A399;
 }
 
 /* ── Empty State ── */
