@@ -515,6 +515,47 @@ main {
   background: color-mix(in srgb, var(--pencil) 15%, transparent);
 }
 
+/* ── Dark mode: expanded entry contrast fix ── */
+/* Expanded bg is lighter (paper mix), so text/buttons need darker colors */
+[data-theme="dark"] .entry--expanded .entry-date {
+  color: var(--graphite);
+}
+
+[data-theme="dark"] .entry--expanded .entry-excerpt,
+[data-theme="dark"] .entry--expanded .entry-body {
+  color: var(--graphite);
+}
+
+[data-theme="dark"] .entry--expanded .entry-tag {
+  background: color-mix(in srgb, var(--lichen) 20%, transparent);
+  color: color-mix(in srgb, var(--lichen) 80%, var(--graphite));
+}
+
+[data-theme="dark"] .entry--expanded .entry-action-btn {
+  border-color: var(--graphite);
+  color: var(--graphite);
+}
+
+[data-theme="dark"] .entry--expanded .entry-action-btn:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+[data-theme="dark"] .entry--expanded .entry-action-btn--danger {
+  border-color: var(--ember);
+  color: var(--ember);
+}
+
+[data-theme="dark"] .entry--expanded .entry-action-btn--danger:hover {
+  border-color: var(--ember);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ember) 12%, transparent);
+}
+
+[data-theme="dark"] .entry--expanded .entry-delete-confirm {
+  color: var(--graphite);
+}
+
 /* ── Empty State ── */
 .empty-state {
   text-align: center;
