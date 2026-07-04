@@ -539,6 +539,133 @@ main {
   pointer-events: none;
 }
 
+/* ── Setup Screen ── */
+.setup-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  background: var(--ink);
+  padding: 1rem;
+}
+
+.setup-screen--hidden {
+  display: none;
+}
+
+.setup-card {
+  background: var(--paper);
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  text-align: center;
+  width: 100%;
+  max-width: 360px;
+  transition: background-color 300ms ease;
+}
+
+.setup-title {
+  font-family: 'Lora', serif;
+  font-size: 1.75rem;
+  font-weight: 400;
+  color: var(--graphite);
+  margin-bottom: 0.25rem;
+}
+
+.setup-subtitle {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.875rem;
+  color: var(--pencil);
+  margin-bottom: 1.5rem;
+}
+
+.setup-field {
+  text-align: left;
+  margin-bottom: 1rem;
+}
+
+.setup-label {
+  display: block;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.75rem;
+  color: var(--pencil);
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.setup-input {
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid color-mix(in srgb, var(--pencil) 30%, transparent);
+  border-radius: 6px;
+  background: transparent;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8125rem;
+  color: var(--graphite);
+  outline: none;
+  transition: border-color 300ms ease, box-shadow 300ms ease;
+}
+
+.setup-input::placeholder {
+  color: color-mix(in srgb, var(--pencil) 50%, transparent);
+}
+
+.setup-input:focus {
+  border-color: var(--lichen);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lichen) 20%, transparent);
+}
+
+.setup-note {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.6875rem;
+  color: var(--pencil);
+  margin-top: 0.375rem;
+  line-height: 1.4;
+}
+
+.setup-btn {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.625rem;
+  border: 1px solid var(--lichen);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--lichen);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 300ms ease, color 300ms ease;
+}
+
+.setup-btn:hover {
+  background: color-mix(in srgb, var(--lichen) 12%, transparent);
+}
+
+.setup-btn:focus-visible {
+  outline: 2px solid var(--lichen);
+  outline-offset: 2px;
+}
+
+.setup-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.setup-error {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.8125rem;
+  color: var(--ember);
+  margin-top: 0.75rem;
+  transition: color 300ms ease;
+}
+
+.setup-error[hidden] {
+  display: none;
+}
+
 /* ── PIN Screen ── */
 .pin-screen {
   position: fixed;
@@ -647,6 +774,48 @@ main {
 .pin-btn:focus-visible {
   outline: 2px solid var(--lichen);
   outline-offset: 2px;
+}
+
+.pin-error {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.8125rem;
+  color: var(--ember);
+  margin-top: 0.75rem;
+  transition: color 300ms ease;
+}
+
+.pin-error[hidden] {
+  display: none;
+}
+
+/* ── Save Status Indicator ── */
+.save-status {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.75rem;
+  color: var(--pencil);
+  text-align: right;
+  min-height: 1.25rem;
+  transition: color 300ms ease, opacity 300ms ease;
+}
+
+.save-status--saving {
+  color: var(--lichen);
+}
+
+.save-status--saved {
+  color: var(--lichen);
+  opacity: 0;
+  animation: savedFade 2s ease forwards;
+}
+
+.save-status--error {
+  color: var(--ember);
+}
+
+@keyframes savedFade {
+  0%   { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* ── Prevent glow overflow ── */

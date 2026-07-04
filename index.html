@@ -27,12 +27,35 @@
     </svg>
   </button>
 
-  <div class="pin-screen" id="pinScreen">
+  <div class="setup-screen" id="setupScreen">
+    <div class="setup-card">
+      <h1 class="setup-title">Space</h1>
+      <p class="setup-subtitle">connect to your GitHub repo</p>
+      <div class="setup-field">
+        <label class="setup-label" for="setupUser">username</label>
+        <input class="setup-input" id="setupUser" type="text" placeholder="mlcodr" autocomplete="off">
+      </div>
+      <div class="setup-field">
+        <label class="setup-label" for="setupRepo">repo name</label>
+        <input class="setup-input" id="setupRepo" type="text" placeholder="Space" autocomplete="off">
+      </div>
+      <div class="setup-field">
+        <label class="setup-label" for="setupToken">Personal Access Token</label>
+        <input class="setup-input" id="setupToken" type="password" placeholder="ghp_..." autocomplete="off">
+        <p class="setup-note">This token stays in your browser only. Never stored on any server.</p>
+      </div>
+      <button class="setup-btn" id="setupBtn">Save &amp; Continue</button>
+      <p class="setup-error" id="setupError" hidden></p>
+    </div>
+  </div>
+
+  <div class="pin-screen pin-screen--hidden" id="pinScreen">
     <div class="pin-card">
       <h1 class="pin-title">Space</h1>
       <p class="pin-subtitle">enter your PIN</p>
       <input type="password" class="pin-input" id="pinInput" inputmode="numeric" pattern="[0-9]*" placeholder="\u2022\u2022\u2022\u2022" maxlength="16" autocomplete="off">
       <button class="pin-btn" id="pinBtn">Enter</button>
+      <p class="pin-error" id="pinError" hidden></p>
     </div>
   </div>
 
@@ -46,6 +69,7 @@
       <input class="tag-input" id="tagInput" type="text" placeholder="add a tag (optional)" aria-label="Tag">
       <textarea class="thought-input" id="thoughtInput" placeholder="what's on your mind?" aria-label="Write your thoughts"></textarea>
       <button class="save-btn" id="saveBtn">Save thought</button>
+      <div class="save-status" id="saveStatus"></div>
     </div>
 
     <hr class="divider">
@@ -78,8 +102,6 @@
     });
 
     // ── Crypto Helpers ──
-    const FIXED_SALT = new TextEncoder().encode('space-journal-salt-v1');
-
     function bufferToBase64(buffer) {
       const bytes = new Uint8Array(buffer);
       let binary = '';
@@ -98,8 +120,12 @@
       return bytes.buffer;
     }
 
+    function generateSalt() {
+      return crypto.getRandomValues(new Uint8Array(16));
+    }
+
     // ── Crypto Functions ──
-    async function deriveKey(pin) {
+    async function deriveKey(pin, salt) {
       const pinBuffer = new TextEncoder().encode(pin);
       const pinKey = await crypto.subtle.importKey(
         'raw',
@@ -112,7 +138,7 @@
       return crypto.subtle.deriveKey(
         {
           name: 'PBKDF2',
-          salt: FIXED_SALT,
+          salt,
           iterations: 100000,
           hash: 'SHA-256'
         },
@@ -157,57 +183,237 @@
       }
     }
 
-    // ── PIN Screen ──
+    // ── GitHub API ──
+    const CONTENTS_API = 'https://api.github.com/repos';
+    const FILE_PATH = 'thoughts.enc.json';
+
+    function getCreds() {
+      try {
+        return JSON.parse(localStorage.getItem('space-github-creds'));
+      } catch {
+        return null;
+      }
+    }
+
+    function saveCreds(user, repo, token) {
+      localStorage.setItem('space-github-creds', JSON.stringify({ user, repo, token }));
+    }
+
+    async function githubFetch(user, repo, token) {
+      const url = `${CONTENTS_API}/${user}/${repo}/contents/${FILE_PATH}`;
+      const res = await fetch(url, {
+        headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' }
+      });
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`GitHub fetch failed: ${res.status}`);
+      const data = await res.json();
+      return {
+        sha: data.sha,
+        content: JSON.parse(atob(data.content))
+      };
+    }
+
+    async function githubSave(user, repo, token, payload, sha) {
+      const url = `${CONTENTS_API}/${user}/${repo}/contents/${FILE_PATH}`;
+      const body = {
+        message: `Update thoughts ${new Date().toISOString()}`,
+        content: btoa(JSON.stringify(payload))
+      };
+      if (sha) body.sha = sha;
+
+      console.log('[Space] githubSave URL:', url, '| SHA included:', !!sha);
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      console.log('[Space] githubSave response:', res.status, res.statusText);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('[Space] GitHub error body:', err);
+        throw new Error(err.message || `GitHub save failed: ${res.status}`);
+      }
+      return res.json();
+    }
+
+    // ── Save Status ──
+    const saveStatus = document.getElementById('saveStatus');
+    let saveStatusTimer = null;
+
+    function showSaveStatus(state) {
+      clearTimeout(saveStatusTimer);
+      saveStatus.className = 'save-status';
+      saveStatus.textContent = '';
+
+      if (state === 'saving') {
+        saveStatus.classList.add('save-status--saving');
+        saveStatus.textContent = 'saving\u2026';
+      } else if (state === 'saved') {
+        saveStatus.classList.add('save-status--saved');
+        saveStatus.textContent = 'saved';
+      } else if (state === 'error') {
+        saveStatus.classList.add('save-status--error');
+        saveStatus.textContent = 'save failed \u2014 check connection';
+      } else if (state === 'pin-error') {
+        saveStatus.classList.add('save-status--error');
+        saveStatus.textContent = 'incorrect PIN';
+      }
+    }
+
+    // ── Setup Screen ──
+    const setupScreen = document.getElementById('setupScreen');
+    const setupUser = document.getElementById('setupUser');
+    const setupRepo = document.getElementById('setupRepo');
+    const setupToken = document.getElementById('setupToken');
+    const setupBtn = document.getElementById('setupBtn');
+    const setupError = document.getElementById('setupError');
     const pinScreen = document.getElementById('pinScreen');
+
+    function showSetup() {
+      setupScreen.classList.remove('setup-screen--hidden');
+      pinScreen.classList.add('pin-screen--hidden');
+      setupUser.focus();
+    }
+
+    function hideSetup() {
+      setupScreen.classList.add('setup-screen--hidden');
+      pinScreen.classList.remove('pin-screen--hidden');
+      pinInput.focus();
+    }
+
+    setupBtn.addEventListener('click', async () => {
+      const user = setupUser.value.trim();
+      const repo = setupRepo.value.trim();
+      const token = setupToken.value.trim();
+
+      if (!user || !repo || !token) {
+        setupError.textContent = 'All fields are required.';
+        setupError.hidden = false;
+        return;
+      }
+
+      setupBtn.disabled = true;
+      setupBtn.textContent = 'Validating\u2026';
+      setupError.hidden = true;
+
+      try {
+        const res = await fetch(`${CONTENTS_API}/${user}/${repo}`, {
+          headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' }
+        });
+        if (!res.ok) {
+          throw new Error(res.status === 401 ? 'Invalid token' : res.status === 404 ? 'Repo not found' : 'Access denied');
+        }
+        saveCreds(user, repo, token);
+        hideSetup();
+      } catch (e) {
+        setupError.textContent = e.message;
+        setupError.hidden = false;
+        setupBtn.disabled = false;
+        setupBtn.textContent = 'Save & Continue';
+      }
+    });
+
+    [setupUser, setupRepo, setupToken].forEach(el => {
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') setupBtn.click(); });
+    });
+
+    // ── PIN Screen ──
     const pinInput = document.getElementById('pinInput');
     const pinBtn = document.getElementById('pinBtn');
+    const pinError = document.getElementById('pinError');
     const mainEl = document.getElementById('main');
     let cryptoKey = null;
+    let currentSalt = null;
+    let currentSha = null;
+
+    function showPinError(msg) {
+      pinError.textContent = msg;
+      pinError.hidden = false;
+    }
+
+    function hidePinError() {
+      pinError.hidden = true;
+    }
 
     async function handlePinSubmit() {
       const pin = pinInput.value.trim();
       if (!pin) return;
 
+      hidePinError();
       pinBtn.disabled = true;
-      pinBtn.textContent = 'Deriving key\u2026';
+      pinBtn.textContent = 'Unlocking\u2026';
 
       try {
-        cryptoKey = await deriveKey(pin);
+        const creds = getCreds();
+        if (!creds) { showSetup(); return; }
 
-        // Round-trip test
-        const testThoughts = [
-          { id: 'test-1', createdAt: Date.now(), updatedAt: Date.now(), tag: 'test', body: 'Round-trip encryption test' }
-        ];
-
-        const encrypted = await encryptThoughts(testThoughts, cryptoKey);
-        console.log('[Space] Encrypted ciphertext:', encrypted.ciphertext.slice(0, 60) + '\u2026');
-
-        const decrypted = await decryptThoughts(encrypted.ciphertext, encrypted.iv, cryptoKey);
-        const pass = JSON.stringify(decrypted) === JSON.stringify(testThoughts);
-        console.log('[Space] Decryption round-trip:', pass ? 'PASS' : 'FAIL');
-
-        if (!pass) {
-          console.error('[Space] Expected:', testThoughts);
-          console.error('[Space] Got:', decrypted);
+        // Fetch from GitHub
+        let remoteData = null;
+        try {
+          remoteData = await githubFetch(creds.user, creds.repo, creds.token);
+        } catch (e) {
+          showPinError('Could not reach GitHub: ' + e.message);
+          resetPinBtn();
+          return;
         }
 
-        // Also test with the actual (empty) thoughts array
-        const encryptedEmpty = await encryptThoughts(thoughts, cryptoKey);
-        const decryptedEmpty = await decryptThoughts(encryptedEmpty.ciphertext, encryptedEmpty.iv, cryptoKey);
-        const emptyPass = JSON.stringify(decryptedEmpty) === JSON.stringify(thoughts);
-        console.log('[Space] Empty array round-trip:', emptyPass ? 'PASS' : 'FAIL');
+        if (!remoteData) {
+          // First use — no file yet
+          const salt = generateSalt();
+          currentSalt = salt;
+          localStorage.setItem('space-salt', bufferToBase64(salt));
 
-        // Reveal journal
-        pinScreen.classList.add('pin-screen--hidden');
-        mainEl.hidden = false;
+          cryptoKey = await deriveKey(pin, salt);
 
-        setTimestamp();
-        renderEntries();
+          // Save empty array to establish the file
+          const enc = await encryptThoughts([], cryptoKey);
+          const payload = { version: 1, updatedAt: Date.now(), salt: bufferToBase64(salt), iv: enc.iv, ciphertext: enc.ciphertext };
+          const saved = await githubSave(creds.user, creds.repo, creds.token, payload, null);
+          currentSha = saved.content.sha;
+
+          thoughts = [];
+          revealJournal();
+          return;
+        }
+
+        // File exists — use stored salt from JSON
+        const storedSalt = base64ToBuffer(remoteData.content.salt);
+        currentSalt = new Uint8Array(storedSalt);
+        localStorage.setItem('space-salt', remoteData.content.salt);
+
+        cryptoKey = await deriveKey(pin, currentSalt);
+        const decrypted = await decryptThoughts(remoteData.content.ciphertext, remoteData.content.iv, cryptoKey);
+
+        if (decrypted === null) {
+          showPinError('Incorrect PIN. Try again.');
+          resetPinBtn();
+          return;
+        }
+
+        thoughts = decrypted;
+        currentSha = remoteData.sha;
+        revealJournal();
       } catch (e) {
-        console.error('[Space] Crypto error:', e);
-        pinBtn.textContent = 'Enter';
-        pinBtn.disabled = false;
+        console.error('[Space] Error:', e);
+        showPinError('Something went wrong: ' + e.message);
+        resetPinBtn();
       }
+    }
+
+    function resetPinBtn() {
+      pinBtn.disabled = false;
+      pinBtn.textContent = 'Enter';
+    }
+
+    function revealJournal() {
+      pinScreen.classList.add('pin-screen--hidden');
+      mainEl.hidden = false;
+      setTimestamp();
+      renderEntries();
     }
 
     pinBtn.addEventListener('click', handlePinSubmit);
@@ -215,8 +421,14 @@
       if (e.key === 'Enter') handlePinSubmit();
     });
 
-    // Focus PIN input on load
-    setTimeout(() => pinInput.focus(), 100);
+    // ── Init flow ──
+    const hasCreds = !!getCreds();
+    if (!hasCreds) {
+      showSetup();
+    } else {
+      pinScreen.classList.remove('pin-screen--hidden');
+      setTimeout(() => pinInput.focus(), 100);
+    }
 
     // ── State ──
     let thoughts = [];
@@ -266,6 +478,51 @@
       page.addEventListener('animationend', () => {
         page.classList.remove('page--pulse');
       }, { once: true });
+    }
+
+    // ── Persist to GitHub ──
+    async function persistToGitHub() {
+      console.log('[Space] persistToGitHub called, thoughts count:', thoughts.length);
+      const creds = getCreds();
+      if (!creds) { console.error('[Space] persistToGitHub: no credentials in localStorage'); showSaveStatus('error'); return; }
+      if (!cryptoKey) { console.error('[Space] persistToGitHub: cryptoKey is null — PIN not entered?'); showSaveStatus('error'); return; }
+      if (!currentSalt) { console.error('[Space] persistToGitHub: currentSalt is null'); showSaveStatus('error'); return; }
+
+      showSaveStatus('saving');
+      try {
+        const enc = await encryptThoughts(thoughts, cryptoKey);
+        const payload = {
+          version: 1,
+          updatedAt: Date.now(),
+          salt: bufferToBase64(currentSalt),
+          iv: enc.iv,
+          ciphertext: enc.ciphertext
+        };
+
+        // Fetch fresh SHA
+        let sha = currentSha;
+        try {
+          console.log('[Space] Fetching fresh SHA from GitHub...');
+          const fresh = await githubFetch(creds.user, creds.repo, creds.token);
+          if (fresh) {
+            sha = fresh.sha;
+            console.log('[Space] Fresh SHA:', sha);
+          } else {
+            console.warn('[Space] githubFetch returned null — file may not exist yet, creating new file');
+          }
+        } catch (e) {
+          console.warn('[Space] Could not fetch fresh SHA, using cached:', currentSha, '— error:', e.message);
+        }
+
+        console.log('[Space] PUTting to GitHub with SHA:', sha);
+        const result = await githubSave(creds.user, creds.repo, creds.token, payload, sha);
+        currentSha = result.content.sha;
+        console.log('[Space] Save successful, new SHA:', currentSha);
+        showSaveStatus('saved');
+      } catch (e) {
+        console.error('[Space] Save error:', e);
+        showSaveStatus('error');
+      }
     }
 
     // ── Render Entries (full rebuild) ──
@@ -385,7 +642,7 @@
       return article;
     }
 
-    // ── Filter (toggle visibility classes, CSS handles transition) ──
+    // ── Filter ──
     function applyFilter() {
       const query = searchInput.value.toLowerCase().trim();
       const entries = entriesEl.querySelectorAll('.entry');
@@ -424,14 +681,8 @@
     // ── Expand / Collapse ──
     function toggleExpand(article) {
       const wasExpanded = article.classList.contains('entry--expanded');
-
-      document.querySelectorAll('.entry--expanded').forEach(el => {
-        el.classList.remove('entry--expanded');
-      });
-
-      if (!wasExpanded) {
-        article.classList.add('entry--expanded');
-      }
+      document.querySelectorAll('.entry--expanded').forEach(el => el.classList.remove('entry--expanded'));
+      if (!wasExpanded) article.classList.add('entry--expanded');
     }
 
     // ── Edit ──
@@ -449,8 +700,7 @@
     // ── Delete ──
     function showDeleteConfirm(actionsEl) {
       actionsEl.hidden = true;
-      const confirmEl = actionsEl.nextElementSibling;
-      confirmEl.hidden = false;
+      actionsEl.nextElementSibling.hidden = false;
     }
 
     function hideDeleteConfirm(actionsEl, confirmEl) {
@@ -458,15 +708,16 @@
       actionsEl.hidden = false;
     }
 
-    function deleteThought(id) {
+    async function deleteThought(id) {
       thoughts = thoughts.filter(t => t.id !== id);
       editingId = null;
       saveBtn.textContent = 'Save thought';
       renderEntries();
+      await persistToGitHub();
     }
 
     // ── Save / Update ──
-    saveBtn.addEventListener('click', () => {
+    saveBtn.addEventListener('click', async () => {
       const body = thoughtInput.value.trim();
       if (!body) return;
 
@@ -482,23 +733,23 @@
         editingId = null;
         saveBtn.textContent = 'Save thought';
       } else {
-        const thought = {
+        thoughts.push({
           id: crypto.randomUUID(),
           createdAt: Date.now(),
           updatedAt: Date.now(),
           tag,
           body
-        };
-        thoughts.push(thought);
+        });
       }
 
       triggerPulse();
       thoughtInput.value = '';
       tagInput.value = '';
       renderEntries();
+      await persistToGitHub();
     });
 
-    // ── Search (only toggle visibility, no DOM rebuild) ──
+    // ── Search ──
     searchInput.addEventListener('input', () => applyFilter());
   </script>
 </body>
