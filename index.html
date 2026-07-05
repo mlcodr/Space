@@ -4,29 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Space</title>
+  <meta name="theme-color" content="#1B1D23" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#EDE9DF" media="(prefers-color-scheme: light)">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;500&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
-    <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="5"/>
-      <line x1="12" y1="1" x2="12" y2="3"/>
-      <line x1="12" y1="21" x2="12" y2="23"/>
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-      <line x1="1" y1="12" x2="3" y2="12"/>
-      <line x1="21" y1="12" x2="23" y2="12"/>
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-    </svg>
-    <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-    </svg>
-  </button>
-
   <div class="setup-screen setup-screen--hidden" id="setupScreen">
     <div class="setup-card">
       <h1 class="setup-title">Space</h1>
@@ -61,17 +49,38 @@
   </div>
 
   <main id="main" hidden>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+      <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"/>
+        <line x1="12" y1="1" x2="12" y2="3"/>
+        <line x1="12" y1="21" x2="12" y2="23"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="1" y1="12" x2="3" y2="12"/>
+        <line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+      <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
     <div class="glow"></div>
 
-    <div class="page" id="page">
-      <div class="page-header">
-        <time class="timestamp" id="timestamp"></time>
+<div class="page" id="page">
+        <div class="page-header">
+          <time class="timestamp" id="timestamp"></time>
+        </div>
+        <input class="tag-input" id="tagInput" type="text" placeholder="add a tag (optional)" aria-label="Tag">
+        <textarea class="thought-input" id="thoughtInput" placeholder="what's on your mind?" aria-label="Write your thoughts"></textarea>
+        <div class="page-readonly" id="pageReadonly" hidden>
+          <div class="page-readonly-body" id="pageReadonlyBody"></div>
+          <button class="page-readonly-close" id="pageReadonlyClose" aria-label="Close read-only view">&times;</button>
+        </div>
+        <button class="save-btn" id="saveBtn">Save thought</button>
+        <div class="save-status" id="saveStatus"></div>
+        <div class="sync-status" id="syncStatus" hidden></div>
       </div>
-      <input class="tag-input" id="tagInput" type="text" placeholder="add a tag (optional)" aria-label="Tag">
-      <textarea class="thought-input" id="thoughtInput" placeholder="what's on your mind?" aria-label="Write your thoughts"></textarea>
-      <button class="save-btn" id="saveBtn">Save thought</button>
-      <div class="save-status" id="saveStatus"></div>
-    </div>
 
     <hr class="divider">
 
@@ -85,11 +94,14 @@
       </div>
     </div>
 
-    <div class="folder-list" id="folderList"></div>
-
-    <div class="folder-detail" id="folderDetail" hidden></div>
-
-    <div class="entries" id="entries"></div>
+    <div class="split-layout">
+      <div class="folder-panel" id="folderPanel">
+        <div class="folder-list" id="folderList"></div>
+      </div>
+      <div class="entries-panel" id="entriesPanel">
+        <div class="entries" id="entries"></div>
+      </div>
+    </div>
   </main>
 
   <script>
@@ -259,6 +271,7 @@
 
     // ── Save Status ──
     const saveStatus = document.getElementById('saveStatus');
+    const syncStatusEl = document.getElementById('syncStatus');
     let saveStatusTimer = null;
 
     function triggerPulse() {
@@ -283,6 +296,122 @@
       } else if (state === 'error') {
         saveStatus.classList.add('save-status--error');
         saveStatus.textContent = msg || 'save failed';
+      }
+    }
+
+    // ── Encrypted Local Storage ──
+    async function saveEncryptedLocally() {
+      if (!cryptoKey) return;
+      try {
+        const enc = await encryptPayload({ thoughts, folders }, cryptoKey);
+        const blob = {
+          version: 1,
+          updatedAt: Date.now(),
+          salt: bufferToBase64(currentSalt),
+          iv: enc.iv,
+          ciphertext: enc.ciphertext
+        };
+        localStorage.setItem('space-local-encrypted', JSON.stringify(blob));
+      } catch (e) {
+        console.warn('[Space] Could not save encrypted blob locally:', e);
+      }
+    }
+
+    function loadEncryptedFromLocal() {
+      try {
+        const raw = localStorage.getItem('space-local-encrypted');
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // ── Pending Sync (boolean: local blob newer than GitHub) ──
+    function getPendingSync() {
+      return localStorage.getItem('space-pending-sync') === 'true';
+    }
+
+    function setPendingSync(pending) {
+      localStorage.setItem('space-pending-sync', String(pending));
+      updatePendingStatus();
+    }
+
+    function updatePendingStatus() {
+      const pending = getPendingSync();
+      if (!pending) {
+        syncStatusEl.hidden = true;
+        syncStatusEl.textContent = '';
+        syncStatusEl.className = 'sync-status';
+        return;
+      }
+      syncStatusEl.hidden = false;
+      if (syncing) {
+        syncStatusEl.textContent = 'syncing\u2026';
+        syncStatusEl.className = 'sync-status sync-status--syncing';
+      } else {
+        syncStatusEl.textContent = 'changes waiting to sync';
+        syncStatusEl.className = 'sync-status sync-status--pending';
+      }
+    }
+
+    let syncing = false;
+
+    // ── Background GitHub Sync ──
+    async function syncToGitHub() {
+      if (syncing) return;
+      const creds = getCreds();
+      if (!creds || !cryptoKey || !currentSalt) return;
+      if (!getPendingSync()) return;
+
+      syncing = true;
+      updatePendingStatus();
+
+      try {
+        const enc = await encryptPayload({ thoughts, folders }, cryptoKey);
+        const payload = {
+          version: 1,
+          updatedAt: Date.now(),
+          salt: bufferToBase64(currentSalt),
+          iv: enc.iv,
+          ciphertext: enc.ciphertext
+        };
+
+        let sha = currentSha;
+        try {
+          const fresh = await githubFetch(creds.user, creds.repo, creds.token);
+          if (fresh) sha = fresh.sha;
+        } catch { /* use cached SHA */ }
+
+        let result = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            result = await githubSave(creds.user, creds.repo, creds.token, payload, sha);
+            break;
+          } catch (e) {
+            if ((e.status === 409 || e.status === 422) && attempt < 3) {
+              await new Promise(r => setTimeout(r, 300));
+              try {
+                const fresh = await githubFetch(creds.user, creds.repo, creds.token);
+                sha = fresh ? fresh.sha : null;
+              } catch { /* keep same SHA */ }
+            } else {
+              console.warn('[Space] Sync failed:', e);
+              syncing = false;
+              updatePendingStatus();
+              return;
+            }
+          }
+        }
+
+        currentSha = result.content.sha;
+        setPendingSync(false);
+        console.log('[Space] Sync successful');
+      } catch (e) {
+        console.warn('[Space] Sync error:', e);
+      } finally {
+        syncing = false;
+        updatePendingStatus();
       }
     }
 
@@ -378,61 +507,76 @@
         const creds = getCreds();
         if (!creds) { showSetup(); return; }
 
+        // Step 1: Try GitHub
         let remoteData = null;
         try {
           remoteData = await githubFetch(creds.user, creds.repo, creds.token);
         } catch (e) {
-          showPinError('Could not reach GitHub: ' + e.message);
-          resetPinBtn();
-          return;
+          // Offline — will try local encrypted blob below
         }
 
-        if (!remoteData) {
-          // First use
-          const salt = generateSalt();
-          currentSalt = salt;
+        if (remoteData) {
+          // Got from GitHub — decrypt
+          const salt = base64ToBuffer(remoteData.content.salt);
+          currentSalt = new Uint8Array(salt);
+          cryptoKey = await deriveKey(pin, currentSalt);
+          const decrypted = await decryptPayload(remoteData.content.ciphertext, remoteData.content.iv, cryptoKey);
 
-          cryptoKey = await deriveKey(pin, salt);
-          const enc = await encryptPayload({ thoughts: [], folders: [] }, cryptoKey);
-          const payload = {
-            version: 1,
-            updatedAt: Date.now(),
-            salt: bufferToBase64(salt),
-            iv: enc.iv,
-            ciphertext: enc.ciphertext
-          };
+          if (decrypted === null) {
+            showPinError('Incorrect PIN. Try again.');
+            resetPinBtn();
+            return;
+          }
 
-          let sha = null;
-          try {
-            const fresh = await githubFetch(creds.user, creds.repo, creds.token);
-            if (fresh) sha = fresh.sha;
-          } catch { /* new file */ }
+          thoughts = decrypted.thoughts || [];
+          folders = decrypted.folders || [];
+          currentSha = remoteData.sha;
 
-          const result = await githubSave(creds.user, creds.repo, creds.token, payload, sha);
-          currentSha = result.content.sha;
-          thoughts = [];
-          folders = [];
+          // Save encrypted blob locally for offline use
+          await saveEncryptedLocally();
+          setPendingSync(false);
           revealJournal();
           return;
         }
 
-        // Existing file
-        const storedSalt = base64ToBuffer(remoteData.content.salt);
-        currentSalt = new Uint8Array(storedSalt);
+        // Step 2: No GitHub data — try local encrypted blob
+        const localBlob = loadEncryptedFromLocal();
+        if (localBlob) {
+          const salt = base64ToBuffer(localBlob.salt);
+          currentSalt = new Uint8Array(salt);
+          cryptoKey = await deriveKey(pin, currentSalt);
+          const decrypted = await decryptPayload(localBlob.ciphertext, localBlob.iv, cryptoKey);
 
-        cryptoKey = await deriveKey(pin, currentSalt);
-        const decrypted = await decryptPayload(remoteData.content.ciphertext, remoteData.content.iv, cryptoKey);
+          if (decrypted === null) {
+            showPinError('Incorrect PIN. Try again.');
+            resetPinBtn();
+            return;
+          }
 
-        if (decrypted === null) {
-          showPinError('Incorrect PIN. Try again.');
-          resetPinBtn();
+          thoughts = decrypted.thoughts || [];
+          folders = decrypted.folders || [];
+          currentSha = null; // No GitHub SHA yet
+          setPendingSync(true); // Local is newer
+          revealJournal();
+          // Try to create GitHub file in background
+          syncToGitHub();
           return;
         }
 
-        thoughts = decrypted.thoughts || [];
-        folders = decrypted.folders || [];
-        currentSha = remoteData.sha;
+        // Step 3: First use — create new journal
+        const salt = generateSalt();
+        currentSalt = salt;
+        cryptoKey = await deriveKey(pin, salt);
+        thoughts = [];
+        folders = [];
+        currentSha = null;
+
+        await saveEncryptedLocally();
+        setPendingSync(true);
         revealJournal();
+
+        // Create GitHub file in background
+        syncToGitHub();
       } catch (e) {
         console.error('[Space] Error:', e);
         showPinError('Something went wrong: ' + e.message);
@@ -451,8 +595,8 @@
       setTimestamp();
       currentView = 'list';
       renderFolderList();
-      folderDetailEl.hidden = true;
       renderEntries();
+      updatePendingStatus();
     }
 
     pinBtn.addEventListener('click', handlePinSubmit);
@@ -487,7 +631,91 @@
     const searchInput = document.getElementById('searchInput');
     const entriesEl = document.getElementById('entries');
     const folderListEl = document.getElementById('folderList');
-    const folderDetailEl = document.getElementById('folderDetail');
+    const pageReadonly = document.getElementById('pageReadonly');
+    const pageReadonlyBody = document.getElementById('pageReadonlyBody');
+    const pageReadonlyClose = document.getElementById('pageReadonlyClose');
+    let readModeActive = false;
+    let readModeThoughtId = null;
+
+    // ── Read-Only Mode ──
+    function enterReadMode(id, body, tag) {
+      readModeActive = true;
+      readModeThoughtId = id;
+      pageReadonlyBody.innerHTML = renderFullMarkdown(body);
+      pageReadonlyBody.hidden = false;
+      pageReadonly.hidden = false;
+      thoughtInput.hidden = true;
+      tagInput.hidden = true;
+      saveBtn.hidden = true;
+      saveStatus.hidden = true;
+    }
+
+    function exitReadMode() {
+      if (!readModeActive) return;
+      readModeActive = false;
+      readModeThoughtId = null;
+      pageReadonly.hidden = true;
+      pageReadonlyBody.hidden = true;
+      thoughtInput.hidden = false;
+      tagInput.hidden = false;
+      saveBtn.hidden = false;
+      saveStatus.hidden = false;
+      thoughtInput.value = '';
+      tagInput.value = '';
+    }
+
+    pageReadonlyClose.addEventListener('click', () => {
+      exitReadMode();
+    });
+    // ── Markdown Rendering (display only, never modifies stored data) ──
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function stripBlockMarkers(text) {
+      return text
+        .split('\n')
+        .map(line => {
+          if (line.startsWith('# ')) line = line.slice(2);
+          if (line.startsWith('- ')) line = line.slice(2);
+          return line;
+        })
+        .join('\n');
+    }
+
+    function renderInlineMarkdown(text) {
+      return escapeHtml(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    }
+
+    function renderFullMarkdown(text) {
+      const lines = text.split('\n');
+      const result = [];
+      let inList = false;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.trim() === '') {
+          if (inList) { result.push('</ul>'); inList = false; }
+          result.push('');
+          continue;
+        }
+        if (line.startsWith('# ')) {
+          if (inList) { result.push('</ul>'); inList = false; }
+          const content = escapeHtml(line.slice(2)).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+          result.push('<h2>' + content + '</h2>');
+        } else if (line.startsWith('- ')) {
+          if (!inList) { result.push('<ul>'); inList = true; }
+          const content = escapeHtml(line.slice(2)).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+          result.push('<li>' + content + '</li>');
+        } else {
+          if (inList) { result.push('</ul>'); inList = false; }
+          const content = escapeHtml(line).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+          result.push('<p>' + content + '</p>');
+        }
+      }
+      if (inList) result.push('</ul>');
+      return result.join('\n');
+    }
 
     // ── Helpers ──
     function formatShortDate(ts) {
@@ -522,55 +750,24 @@
       return f ? f.name : null;
     }
 
-    function getCurrentFolder() {
-      if (currentView === 'list') return null;
-      return folders.find(f => f.id === currentView) || null;
-    }
-
-    // ── Navigation ──
-    function navigateToFolder(folderId) {
-      currentView = folderId;
-      renderFolderList();
-      renderFolderDetail();
-      renderEntries();
-      entriesEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-    function navigateBack() {
-      currentView = 'list';
-      renderFolderList();
-      folderDetailEl.hidden = true;
-      renderEntries();
-    }
-
-    // ── Folder List (VIEW 1) ──
+    // ── Folder List ──
     function renderFolderList() {
       folderListEl.innerHTML = '';
-      folderListEl.hidden = (currentView !== 'list');
-
-      if (currentView !== 'list') return;
 
       // "All thoughts" row
       const allRow = document.createElement('button');
       allRow.className = 'folder-row';
+      if (currentView === 'list') allRow.classList.add('folder-row--active');
+      allRow.dataset.folderId = '__all__';
       const allName = document.createElement('span');
       allName.className = 'folder-row-name';
       allName.textContent = 'All thoughts';
       const allCount = document.createElement('span');
       allCount.className = 'folder-row-count';
       allCount.textContent = thoughts.length;
-      const allChevron = document.createElement('span');
-      allChevron.className = 'folder-row-chevron';
-      allChevron.textContent = '\u203a';
       allRow.appendChild(allName);
       allRow.appendChild(allCount);
-      allRow.appendChild(allChevron);
-      allRow.addEventListener('click', () => {
-        currentView = 'list';
-        renderEntries();
-        folderListEl.querySelectorAll('.folder-row').forEach(r => r.classList.remove('folder-row--active'));
-        allRow.classList.add('folder-row--active');
-      });
+      allRow.addEventListener('click', () => selectFolder('list'));
       // Drop target for unfiled
       allRow.addEventListener('dragover', (e) => { e.preventDefault(); allRow.classList.add('folder-row--drag-over'); });
       allRow.addEventListener('dragleave', () => allRow.classList.remove('folder-row--drag-over'));
@@ -587,6 +784,7 @@
         const count = thoughts.filter(t => t.folderId === folder.id).length;
         const row = document.createElement('button');
         row.className = 'folder-row';
+        if (currentView === folder.id) row.classList.add('folder-row--active');
         row.dataset.folderId = folder.id;
         const nameSpan = document.createElement('span');
         nameSpan.className = 'folder-row-name';
@@ -594,13 +792,23 @@
         const countSpan = document.createElement('span');
         countSpan.className = 'folder-row-count';
         countSpan.textContent = count;
-        const chevron = document.createElement('span');
-        chevron.className = 'folder-row-chevron';
-        chevron.textContent = '\u203a';
         row.appendChild(nameSpan);
         row.appendChild(countSpan);
-        row.appendChild(chevron);
-        row.addEventListener('click', () => navigateToFolder(folder.id));
+
+        // Menu button
+        const menuWrapper = document.createElement('div');
+        menuWrapper.className = 'folder-row-menu';
+        const menuBtn = document.createElement('button');
+        menuBtn.className = 'folder-row-menu-btn';
+        menuBtn.textContent = '\u2026';
+        menuBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleFolderMenu(menuWrapper, folder);
+        });
+        menuWrapper.appendChild(menuBtn);
+        row.appendChild(menuWrapper);
+
+        row.addEventListener('click', () => selectFolder(folder.id));
         // Drop target
         row.addEventListener('dragover', (e) => { e.preventDefault(); row.classList.add('folder-row--drag-over'); });
         row.addEventListener('dragleave', () => row.classList.remove('folder-row--drag-over'));
@@ -650,60 +858,73 @@
       folderListEl.appendChild(addInput);
     }
 
-    // ── Folder Detail (VIEW 2) ──
-    function renderFolderDetail() {
-      const folder = getCurrentFolder();
-      if (!folder) {
-        folderDetailEl.hidden = true;
-        return;
-      }
-      folderDetailEl.hidden = false;
-      folderDetailEl.innerHTML = '';
-
-      const header = document.createElement('div');
-      header.className = 'folder-detail-header';
-
-      // Back button
-      const backBtn = document.createElement('button');
-      backBtn.className = 'folder-back-btn';
-      backBtn.textContent = '\u2190 Back';
-      backBtn.addEventListener('click', navigateBack);
-      header.appendChild(backBtn);
-
-      // Folder name (or rename input)
-      const nameEl = document.createElement('span');
-      nameEl.className = 'folder-detail-name';
-      nameEl.textContent = folder.name;
-      header.appendChild(nameEl);
-
-      // Action buttons
-      const actions = document.createElement('div');
-      actions.className = 'folder-detail-actions';
-
-      const renameBtn = document.createElement('button');
-      renameBtn.className = 'folder-detail-btn';
-      renameBtn.textContent = 'Rename';
-      renameBtn.addEventListener('click', () => startDetailRename(folder, header));
-      actions.appendChild(renameBtn);
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'folder-detail-btn folder-detail-btn--danger';
-      deleteBtn.textContent = 'Delete';
-      deleteBtn.addEventListener('click', () => confirmDetailDelete(folder, header));
-      actions.appendChild(deleteBtn);
-
-      header.appendChild(actions);
-      folderDetailEl.appendChild(header);
+    function selectFolder(folderId) {
+      currentView = folderId;
+      renderFolderList();
+      renderEntries();
     }
 
-    function startDetailRename(folder, header) {
-      const nameEl = header.querySelector('.folder-detail-name');
-      const actions = header.querySelector('.folder-detail-actions');
+    function toggleFolderMenu(wrapper, folder) {
+      // Close any other open menus
+      document.querySelectorAll('.folder-row-dropdown[open]').forEach(el => {
+        if (el !== wrapper.querySelector('.folder-row-dropdown')) {
+          el.removeAttribute('open');
+          el.remove();
+        }
+      });
+
+      let dropdown = wrapper.querySelector('.folder-row-dropdown');
+      if (dropdown && dropdown.hasAttribute('open')) {
+        dropdown.removeAttribute('open');
+        return;
+      }
+
+      if (!dropdown) {
+        dropdown = document.createElement('div');
+        dropdown.className = 'folder-row-dropdown';
+
+        const renameItem = document.createElement('button');
+        renameItem.className = 'folder-row-dropdown-item';
+        renameItem.textContent = 'Rename';
+        renameItem.addEventListener('click', (e) => {
+          e.stopPropagation();
+          dropdown.removeAttribute('open');
+          startInlineRename(folder, wrapper.closest('.folder-row'));
+        });
+        dropdown.appendChild(renameItem);
+
+        const deleteItem = document.createElement('button');
+        deleteItem.className = 'folder-row-dropdown-item folder-row-dropdown-item--danger';
+        deleteItem.textContent = 'Delete';
+        deleteItem.addEventListener('click', (e) => {
+          e.stopPropagation();
+          dropdown.removeAttribute('open');
+          startInlineDelete(folder, wrapper.closest('.folder-row'));
+        });
+        dropdown.appendChild(deleteItem);
+
+        wrapper.appendChild(dropdown);
+      }
+
+      dropdown.setAttribute('open', '');
+
+      // Close on click outside
+      const closeHandler = (e) => {
+        if (!wrapper.contains(e.target)) {
+          dropdown.removeAttribute('open');
+          document.removeEventListener('click', closeHandler);
+        }
+      };
+      setTimeout(() => document.addEventListener('click', closeHandler), 0);
+    }
+
+    function startInlineRename(folder, rowEl) {
+      const nameSpan = rowEl.querySelector('.folder-row-name');
       const currentName = folder.name;
 
       const input = document.createElement('input');
       input.type = 'text';
-      input.className = 'folder-detail-rename';
+      input.className = 'folder-add-input';
       input.value = currentName;
       input.maxLength = 30;
 
@@ -714,38 +935,38 @@
         if (newName && newName !== currentName) {
           saved = true;
           folder.name = newName;
-          renderFolderDetail();
+          await saveEncryptedLocally();
           renderFolderList();
-          const ok = await persistToGitHub();
-          if (!ok) {
-            folder.name = currentName;
-            renderFolderDetail();
-            renderFolderList();
-          }
+          renderEntries();
+          setPendingSync(true);
+          syncToGitHub();
         } else {
-          renderFolderDetail();
+          renderFolderList();
         }
       };
 
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); save(); }
-        else if (e.key === 'Escape') { saved = true; renderFolderDetail(); }
+        else if (e.key === 'Escape') { saved = true; renderFolderList(); }
       });
       input.addEventListener('blur', save);
 
-      nameEl.replaceWith(input);
-      actions.hidden = true;
+      nameSpan.replaceWith(input);
       input.focus();
       input.select();
     }
 
-    function confirmDetailDelete(folder, header) {
-      const actions = header.querySelector('.folder-detail-actions');
-      actions.hidden = true;
+    function startInlineDelete(folder, rowEl) {
+      rowEl.innerHTML = '';
+
+      const msg = document.createElement('span');
+      msg.className = 'folder-row-name';
+      msg.textContent = 'Delete ' + folder.name + '?';
+      rowEl.appendChild(msg);
 
       const confirm = document.createElement('div');
       confirm.className = 'folder-detail-delete-confirm';
-      confirm.innerHTML = '<span>delete this folder?</span>';
+
       const yesBtn = document.createElement('button');
       yesBtn.className = 'confirm-yes';
       yesBtn.textContent = 'yes';
@@ -753,25 +974,30 @@
         e.stopPropagation();
         deleteFolder(folder);
       });
+
       const noBtn = document.createElement('button');
       noBtn.className = 'confirm-no';
       noBtn.textContent = 'no';
       noBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        renderFolderDetail();
+        renderFolderList();
       });
+
       confirm.appendChild(yesBtn);
       confirm.appendChild(noBtn);
-      header.appendChild(confirm);
+      rowEl.appendChild(confirm);
     }
 
-    // ── Folder CRUD ──
+    // ── Folder CRUD (local-first) ──
     async function createFolder(name) {
       const folder = { id: crypto.randomUUID(), name, createdAt: Date.now() };
       folders.push(folder);
       console.log('[Space] Folder created:', name, folder.id);
+      await saveEncryptedLocally();
       renderFolderList();
-      await persistToGitHub();
+      renderEntries();
+      setPendingSync(true);
+      syncToGitHub();
     }
 
     async function deleteFolder(folder) {
@@ -779,10 +1005,11 @@
       folders = folders.filter(f => f.id !== folder.id);
       console.log('[Space] Folder deleted:', folder.name);
       currentView = 'list';
+      await saveEncryptedLocally();
       renderFolderList();
-      folderDetailEl.hidden = true;
       renderEntries();
-      await persistToGitHub();
+      setPendingSync(true);
+      syncToGitHub();
     }
 
     async function moveThoughtToFolder(thoughtId, folderId) {
@@ -792,81 +1019,27 @@
       t.updatedAt = Date.now();
       const folderName = getFolderName(folderId);
       console.log('[Space] Moved thought', thoughtId, 'to', folderName || '(unfiled)');
+      await saveEncryptedLocally();
       renderFolderList();
       renderEntries();
-      await persistToGitHub();
+      setPendingSync(true);
+      syncToGitHub();
     }
 
-    // ── Persist to GitHub ──
+    // ── Persist to GitHub (kept for compatibility, now non-blocking) ──
     async function persistToGitHub() {
-      const creds = getCreds();
-      if (!creds) { showSaveStatus('error', 'missing credentials'); return false; }
-      if (!cryptoKey) { showSaveStatus('error', 'not unlocked'); return false; }
-      if (!currentSalt) { showSaveStatus('error', 'no encryption key'); return false; }
-      if (saving) return false;
-
-      saving = true;
-      saveBtn.disabled = true;
-      showSaveStatus('saving');
-
-      try {
-        const enc = await encryptPayload({ thoughts, folders }, cryptoKey);
-        const payload = {
-          version: 1,
-          updatedAt: Date.now(),
-          salt: bufferToBase64(currentSalt),
-          iv: enc.iv,
-          ciphertext: enc.ciphertext
-        };
-
-        let sha = currentSha;
-        try {
-          const fresh = await githubFetch(creds.user, creds.repo, creds.token);
-          if (fresh) {
-            sha = fresh.sha;
-            console.log('[Space] Attempt 1 SHA:', sha);
-          }
-        } catch (e) {
-          console.warn('[Space] Could not fetch fresh SHA, using cached:', currentSha);
-        }
-
-        let result = null;
-        for (let attempt = 1; attempt <= 3; attempt++) {
-          try {
-            console.log('[Space] PUT attempt', attempt, 'with SHA:', sha);
-            result = await githubSave(creds.user, creds.repo, creds.token, payload, sha);
-            console.log('[Space] Attempt', attempt, 'succeeded');
-            break;
-          } catch (e) {
-            if ((e.status === 409 || e.status === 422) && attempt < 3) {
-              console.warn('[Space] SHA conflict on attempt', attempt, ', retrying...');
-              await new Promise(r => setTimeout(r, 300));
-              try {
-                const fresh = await githubFetch(creds.user, creds.repo, creds.token);
-                sha = fresh ? fresh.sha : null;
-                console.log('[Space] Retry SHA:', sha);
-              } catch { /* keep same SHA */ }
-            } else {
-              console.error('[Space] Save failed:', e);
-              showSaveStatus('error', e.status ? 'save failed (HTTP ' + e.status + ')' : 'check your connection');
-              return false;
-            }
-          }
-        }
-
-        currentSha = result.content.sha;
-        console.log('[Space] Save successful, new SHA:', currentSha);
-        showSaveStatus('saved');
-        return true;
-      } catch (e) {
-        console.error('[Space] Unexpected error:', e);
-        showSaveStatus('error', 'save failed: ' + e.message);
-        return false;
-      } finally {
-        saving = false;
-        saveBtn.disabled = false;
-      }
+      // This function is now handled by syncToGitHub() in the background
+      // It's kept as a no-op for any stale callers
+      return true;
     }
+
+    // Hide revealed Edit/Delete buttons when clicking outside entries
+    document.addEventListener('pointerdown', (e) => {
+      if (!e.target.closest('.entry')) {
+        document.querySelectorAll('.entry-actions:not([hidden])').forEach(el => el.hidden = true);
+        document.querySelectorAll('.entry-delete-confirm:not([hidden])').forEach(el => el.hidden = true);
+      }
+    });
 
     // ── Render Entries ──
     function renderEntries() {
@@ -919,7 +1092,7 @@
       article.addEventListener('dragend', () => {
         article.classList.remove('entry--dragging');
         draggedThoughtId = null;
-        document.querySelectorAll('.folder-item--drag-over').forEach(el => el.classList.remove('folder-item--drag-over'));
+        document.querySelectorAll('.folder-row--drag-over').forEach(el => el.classList.remove('folder-row--drag-over'));
       });
 
       const row = document.createElement('div');
@@ -934,7 +1107,7 @@
 
       const excerpt = document.createElement('p');
       excerpt.className = 'entry-excerpt';
-      excerpt.textContent = truncate(t.body, 80);
+      excerpt.innerHTML = truncate(renderInlineMarkdown(stripBlockMarkers(t.body)), 70);
 
       row.appendChild(dateEl);
       if (t.tag) {
@@ -954,16 +1127,10 @@
       }
       row.appendChild(excerpt);
 
-      const content = document.createElement('div');
-      content.className = 'entry-content';
-
-      const body = document.createElement('p');
-      body.className = 'entry-body';
-      body.textContent = t.body;
-      content.appendChild(body);
-
+      // Edit + Delete buttons (hidden by default)
       const actions = document.createElement('div');
       actions.className = 'entry-actions';
+      actions.hidden = true;
 
       const editBtn = document.createElement('button');
       editBtn.className = 'entry-action-btn';
@@ -978,43 +1145,12 @@
       deleteBtn.textContent = 'Delete';
       deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        showDeleteConfirm(actions);
+        actions.hidden = true;
+        confirm.hidden = false;
       });
 
       actions.appendChild(editBtn);
       actions.appendChild(deleteBtn);
-
-      // "Move to..." dropdown
-      const moveWrapper = document.createElement('div');
-      moveWrapper.className = 'entry-move-wrapper';
-      const moveSelect = document.createElement('select');
-      moveSelect.className = 'entry-move-select';
-      const unfiledOpt = document.createElement('option');
-      unfiledOpt.value = '';
-      unfiledOpt.textContent = 'Move to...';
-      moveSelect.appendChild(unfiledOpt);
-      const noneOpt = document.createElement('option');
-      noneOpt.value = '__unfiled__';
-      noneOpt.textContent = 'Unfiled';
-      moveSelect.appendChild(noneOpt);
-      folders.forEach(f => {
-        const opt = document.createElement('option');
-        opt.value = f.id;
-        opt.textContent = f.name;
-        if (t.folderId === f.id) opt.selected = true;
-        moveSelect.appendChild(opt);
-      });
-      moveSelect.addEventListener('change', (e) => {
-        e.stopPropagation();
-        const val = moveSelect.value;
-        if (val === '') return;
-        moveThoughtToFolder(t.id, val === '__unfiled__' ? null : val);
-      });
-      moveSelect.addEventListener('click', (e) => e.stopPropagation());
-      moveWrapper.appendChild(moveSelect);
-      actions.appendChild(moveWrapper);
-
-      content.appendChild(actions);
 
       const confirm = document.createElement('div');
       confirm.className = 'entry-delete-confirm';
@@ -1032,22 +1168,71 @@
       noBtn.textContent = 'no';
       noBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        hideDeleteConfirm(actions, confirm);
+        confirm.hidden = true;
+        actions.hidden = false;
       });
       confirm.appendChild(yesBtn);
       confirm.appendChild(noBtn);
-      content.appendChild(confirm);
 
       article.appendChild(row);
-      article.appendChild(content);
+      article.appendChild(actions);
+      article.appendChild(confirm);
 
-      row.addEventListener('click', () => toggleExpand(article));
-      row.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          toggleExpand(article);
+      // ── Short click / Long press detection ──
+      let pressTimer = null;
+      let longPressed = false;
+      let startX = 0;
+      let startY = 0;
+      const LONG_PRESS_MS = 750;
+      const MOVE_THRESHOLD = 8;
+
+      function clearPress() {
+        if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+        row.classList.remove('entry--pressing');
+      }
+
+      row.addEventListener('pointerdown', (e) => {
+        if (e.button && e.button !== 0) return; // only primary button
+        if (draggedThoughtId) return;
+        longPressed = false;
+        startX = e.clientX;
+        startY = e.clientY;
+        row.classList.add('entry--pressing');
+        pressTimer = setTimeout(() => {
+          longPressed = true;
+          pressTimer = null;
+          row.classList.remove('entry--pressing');
+          // Reveal Edit/Delete, hide any other revealed row
+          document.querySelectorAll('.entry-actions:not([hidden])').forEach(el => el.hidden = true);
+          document.querySelectorAll('.entry-delete-confirm:not([hidden])').forEach(el => el.hidden = true);
+          actions.hidden = false;
+          confirm.hidden = true;
+        }, LONG_PRESS_MS);
+      });
+
+      row.addEventListener('pointermove', (e) => {
+        if (!pressTimer) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
+          clearPress();
         }
       });
+
+      row.addEventListener('pointerup', (e) => {
+        if (longPressed) {
+          longPressed = false;
+          return; // already handled by long press
+        }
+        if (pressTimer) {
+          clearPress();
+          enterReadMode(t.id, t.body, t.tag);
+          page.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+
+      row.addEventListener('pointercancel', () => { clearPress(); longPressed = false; });
+      row.addEventListener('pointerleave', () => { clearPress(); longPressed = false; });
 
       return article;
     }
@@ -1088,17 +1273,11 @@
       }
     }
 
-    // ── Expand / Collapse ──
-    function toggleExpand(article) {
-      const wasExpanded = article.classList.contains('entry--expanded');
-      document.querySelectorAll('.entry--expanded').forEach(el => el.classList.remove('entry--expanded'));
-      if (!wasExpanded) article.classList.add('entry--expanded');
-    }
-
     // ── Edit ──
     function startEdit(id) {
       const t = thoughts.find(x => x.id === id);
       if (!t) return;
+      if (readModeActive) exitReadMode();
       editingId = id;
       thoughtInput.value = t.body;
       tagInput.value = t.tag || '';
@@ -1108,26 +1287,19 @@
     }
 
     // ── Delete ──
-    function showDeleteConfirm(actionsEl) {
-      actionsEl.hidden = true;
-      actionsEl.nextElementSibling.hidden = false;
-    }
-
-    function hideDeleteConfirm(actionsEl, confirmEl) {
-      confirmEl.hidden = true;
-      actionsEl.hidden = false;
-    }
-
     async function deleteThought(id) {
+      if (id === readModeThoughtId) exitReadMode();
       thoughts = thoughts.filter(t => t.id !== id);
       editingId = null;
       saveBtn.textContent = 'Save thought';
+      await saveEncryptedLocally();
       renderFolderList();
       renderEntries();
-      await persistToGitHub();
+      setPendingSync(true);
+      syncToGitHub();
     }
 
-    // ── Save / Update ──
+    // ── Save / Update (local-first) ──
     saveBtn.addEventListener('click', async () => {
       const body = thoughtInput.value.trim();
       if (!body) return;
@@ -1135,30 +1307,28 @@
       const tag = tagInput.value.trim() || null;
 
       if (editingId) {
+        // Editing existing thought
         const t = thoughts.find(x => x.id === editingId);
         if (!t) return;
-        const prevBody = t.body;
-        const prevTag = t.tag;
         t.body = body;
         t.tag = tag;
         t.updatedAt = Date.now();
         editingId = null;
         saveBtn.textContent = 'Save thought';
+
+        // Save locally first, update UI immediately
+        await saveEncryptedLocally();
         renderFolderList();
         renderEntries();
-        const ok = await persistToGitHub();
-        if (ok) {
-          thoughtInput.value = '';
-          tagInput.value = '';
-          triggerPulse();
-        } else {
-          t.body = prevBody;
-          t.tag = prevTag;
-          editingId = t.id;
-          saveBtn.textContent = 'Update thought';
-          renderEntries();
-        }
+        thoughtInput.value = '';
+        tagInput.value = '';
+        triggerPulse();
+
+        // Background sync to GitHub
+        setPendingSync(true);
+        syncToGitHub();
       } else {
+        // New thought
         const newThought = {
           id: crypto.randomUUID(),
           createdAt: Date.now(),
@@ -1168,22 +1338,40 @@
           folderId: currentView !== 'list' ? currentView : null
         };
         thoughts.push(newThought);
+
+        // Save locally first, update UI immediately
+        await saveEncryptedLocally();
         renderFolderList();
         renderEntries();
-        const ok = await persistToGitHub();
-        if (ok) {
-          thoughtInput.value = '';
-          tagInput.value = '';
-          triggerPulse();
-        } else {
-          thoughts = thoughts.filter(x => x.id !== newThought.id);
-          renderEntries();
-        }
+        thoughtInput.value = '';
+        tagInput.value = '';
+        triggerPulse();
+
+        // Background sync to GitHub
+        setPendingSync(true);
+        syncToGitHub();
       }
     });
 
     // ── Search ──
-    searchInput.addEventListener('input', () => applyFilter());
+    searchInput.addEventListener('input', () => {
+      applyFilter();
+    });
+
+    // ── Online event: sync pending changes ──
+    window.addEventListener('online', () => {
+      console.log('[Space] Back online — syncing pending changes');
+      syncToGitHub();
+    });
+
+    // ── Service Worker Registration ──
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').then(reg => {
+        console.log('[Space] Service worker registered, scope:', reg.scope);
+      }).catch(err => {
+        console.warn('[Space] Service worker registration failed:', err);
+      });
+    }
   </script>
 </body>
 </html>
