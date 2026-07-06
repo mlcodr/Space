@@ -49,27 +49,27 @@
   </div>
 
   <main id="main" hidden>
-    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
-      <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="5"/>
-        <line x1="12" y1="1" x2="12" y2="3"/>
-        <line x1="12" y1="21" x2="12" y2="23"/>
-        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-        <line x1="1" y1="12" x2="3" y2="12"/>
-        <line x1="21" y1="12" x2="23" y2="12"/>
-        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-      </svg>
-      <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-      </svg>
-    </button>
     <div class="glow"></div>
 
 <div class="page" id="page">
         <div class="page-header">
           <time class="timestamp" id="timestamp"></time>
+          <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+            <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"/>
+              <line x1="12" y1="1" x2="12" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="23"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+              <line x1="1" y1="12" x2="3" y2="12"/>
+              <line x1="21" y1="12" x2="23" y2="12"/>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+            <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </button>
         </div>
         <input class="tag-input" id="tagInput" type="text" placeholder="add a tag (optional)" aria-label="Tag">
         <textarea class="thought-input" id="thoughtInput" placeholder="what's on your mind?" aria-label="Write your thoughts"></textarea>
@@ -756,7 +756,7 @@
 
       // "All thoughts" row
       const allRow = document.createElement('button');
-      allRow.className = 'folder-row';
+      allRow.className = 'folder-row folder-row-all';
       if (currentView === 'list') allRow.classList.add('folder-row--active');
       allRow.dataset.folderId = '__all__';
       const allName = document.createElement('span');
@@ -876,6 +876,9 @@
       let dropdown = wrapper.querySelector('.folder-row-dropdown');
       if (dropdown && dropdown.hasAttribute('open')) {
         dropdown.removeAttribute('open');
+        dropdown.style.position = '';
+        dropdown.style.top = '';
+        dropdown.style.left = '';
         return;
       }
 
@@ -889,6 +892,9 @@
         renameItem.addEventListener('click', (e) => {
           e.stopPropagation();
           dropdown.removeAttribute('open');
+          dropdown.style.position = '';
+          dropdown.style.top = '';
+          dropdown.style.left = '';
           startInlineRename(folder, wrapper.closest('.folder-row'));
         });
         dropdown.appendChild(renameItem);
@@ -899,6 +905,9 @@
         deleteItem.addEventListener('click', (e) => {
           e.stopPropagation();
           dropdown.removeAttribute('open');
+          dropdown.style.position = '';
+          dropdown.style.top = '';
+          dropdown.style.left = '';
           startInlineDelete(folder, wrapper.closest('.folder-row'));
         });
         dropdown.appendChild(deleteItem);
@@ -908,10 +917,25 @@
 
       dropdown.setAttribute('open', '');
 
+      // Position dropdown using the tapped button's bounding rect
+      const btn = wrapper.querySelector('.folder-row-menu-btn');
+      if (btn) {
+        const btnRect = btn.getBoundingClientRect();
+        const dropWidth = dropdown.offsetWidth;
+        let left = btnRect.left + btnRect.width / 2 - dropWidth / 2;
+        left = Math.max(8, Math.min(left, window.innerWidth - dropWidth - 8));
+        dropdown.style.position = 'fixed';
+        dropdown.style.top = (btnRect.bottom + 4) + 'px';
+        dropdown.style.left = left + 'px';
+      }
+
       // Close on click outside
       const closeHandler = (e) => {
         if (!wrapper.contains(e.target)) {
           dropdown.removeAttribute('open');
+          dropdown.style.position = '';
+          dropdown.style.top = '';
+          dropdown.style.left = '';
           document.removeEventListener('click', closeHandler);
         }
       };
@@ -1110,21 +1134,27 @@
       excerpt.innerHTML = truncate(renderInlineMarkdown(stripBlockMarkers(t.body)), 70);
 
       row.appendChild(dateEl);
-      if (t.tag) {
-        const tagEl = document.createElement('span');
-        tagEl.className = 'entry-tag';
-        tagEl.textContent = t.tag;
-        row.appendChild(tagEl);
-      }
-      if (t.folderId) {
-        const folderName = getFolderName(t.folderId);
-        if (folderName) {
+
+      const hasTag = t.tag;
+      const hasFolder = t.folderId && getFolderName(t.folderId);
+      if (hasTag || hasFolder) {
+        const metas = document.createElement('div');
+        metas.className = 'entry-metas';
+        if (hasTag) {
+          const tagEl = document.createElement('span');
+          tagEl.className = 'entry-tag';
+          tagEl.textContent = t.tag;
+          metas.appendChild(tagEl);
+        }
+        if (hasFolder) {
           const folderEl = document.createElement('span');
           folderEl.className = 'entry-folder';
-          folderEl.textContent = folderName;
-          row.appendChild(folderEl);
+          folderEl.textContent = getFolderName(t.folderId);
+          metas.appendChild(folderEl);
         }
+        row.appendChild(metas);
       }
+
       row.appendChild(excerpt);
 
       // Edit + Delete buttons (hidden by default)
