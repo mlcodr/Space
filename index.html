@@ -1510,6 +1510,12 @@
 
     // ── Search ──
     searchInput.addEventListener('input', () => {
+      const query = searchInput.value.toLowerCase().trim();
+      if (query && currentView !== 'list') {
+        currentView = 'list';
+        renderFolderList();
+        renderEntries();
+      }
       applyFilter();
     });
 

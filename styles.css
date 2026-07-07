@@ -289,6 +289,8 @@ main {
   flex-direction: column;
   gap: 1rem;
   margin-bottom: 2rem;
+  width: 100%;
+  order: 1;
 }
 
 .search-wrapper {
@@ -365,6 +367,7 @@ main {
 /* ── Split Layout ── */
 .split-layout {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
@@ -373,11 +376,13 @@ main {
   flex: 0 0 32%;
   max-width: 32%;
   min-width: 0;
+  order: 2;
 }
 
 .entries-panel {
   flex: 1;
   min-width: 0;
+  order: 3;
 }
 
 /* ── Folder Delete Confirm ── */
