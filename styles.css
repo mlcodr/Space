@@ -390,8 +390,8 @@ main {
   border-radius: 4px;
   background: transparent;
   color: var(--pencil);
-  font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 0.8125rem;
+  font-family: 'Lora', serif;
+  font-size: 0.875rem;
   cursor: pointer;
   transition: color 150ms ease, background 150ms ease;
   text-align: left;
@@ -495,8 +495,8 @@ main {
   border-radius: 0;
   background: transparent;
   color: var(--graphite);
-  font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 0.75rem;
+  font-family: 'Lora', serif;
+  font-size: 0.8rem;
   text-align: left;
   cursor: pointer;
   transition: background 150ms ease;
@@ -524,8 +524,8 @@ main {
   border-radius: 0;
   background: none;
   color: var(--pencil);
-  font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 0.8125rem;
+  font-family: 'Lora', serif;
+  font-size: 0.875rem;
   cursor: pointer;
   transition: color 150ms ease;
   width: 100%;
@@ -543,8 +543,8 @@ main {
   border: 1px solid var(--lichen);
   border-radius: 4px;
   background: transparent;
-  font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 0.8125rem;
+  font-family: 'Lora', serif;
+  font-size: 0.875rem;
   color: var(--graphite);
   outline: none;
 }
@@ -1504,7 +1504,7 @@ body {
     border-radius: 8px;
     background: var(--paper);
     color: var(--graphite);
-    font-family: 'IBM Plex Sans', sans-serif;
+    font-family: 'Lora', serif;
     font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
