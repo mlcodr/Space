@@ -649,7 +649,7 @@ main {
   flex: 0 0 80px;
   min-width: 80px;
   max-width: 80px;
-  margin-right: 0.125rem;
+  margin-right: 0.05rem;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -1322,7 +1322,7 @@ body {
     flex: 0 0 75px;
     min-width: 75px;
     max-width: 75px;
-    margin-right: 0.1rem;
+    margin-right: 0.05rem;
   }
   .entry-meta-col {
     flex: 0 0 75px;
