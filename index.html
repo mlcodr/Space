@@ -75,6 +75,9 @@
         <textarea class="thought-input" id="thoughtInput" placeholder="what's on your mind?" aria-label="Write your thoughts"></textarea>
         <div class="page-readonly" id="pageReadonly" hidden>
           <div class="page-readonly-body" id="pageReadonlyBody"></div>
+          <div class="page-readonly-footer" id="pageReadonlyFooter">
+            <span class="readonly-word-count" id="readonlyWordCount">0 words</span>
+          </div>
         </div>
         <div class="page-save-group" id="pageSaveGroup">
           <div class="page-save-buttons">
@@ -653,6 +656,7 @@
     const pageReadonly = document.getElementById('pageReadonly');
     const pageReadonlyBody = document.getElementById('pageReadonlyBody');
     const editorWordCount = document.getElementById('editorWordCount');
+    const readonlyWordCount = document.getElementById('readonlyWordCount');
     const folderToggleBtn = document.getElementById('folderToggleBtn');
     const folderToggleText = folderToggleBtn.querySelector('.folder-toggle-text');
     const folderToggleArrow = folderToggleBtn.querySelector('.folder-toggle-arrow');
@@ -677,6 +681,9 @@
       readModeActive = true;
       readModeThoughtId = id;
       pageReadonlyBody.innerHTML = renderFullMarkdown(body);
+
+      const wordCount = calculateWordCount(body);
+      readonlyWordCount.textContent = wordCount === 1 ? '1 word' : `${wordCount} words`;
 
       pageReadonlyBody.hidden = false;
       pageReadonly.hidden = false;

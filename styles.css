@@ -33,6 +33,10 @@
   padding: 0;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 /* ── Smooth theme crossfade ── */
 body {
   min-height: 100vh;
@@ -208,39 +212,20 @@ main {
   justify-content: space-between;
 }
 
-.page-readonly-close {
-  align-self: flex-start;
-  width: 1.5rem;
-  height: 1.5rem;
-  border: none;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--pencil) 12%, transparent);
-  color: var(--pencil);
-  font-size: 0.875rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 200ms ease, color 200ms ease;
-  line-height: 1;
-}
-
-.page-readonly-close:hover {
-  background: color-mix(in srgb, var(--pencil) 20%, transparent);
-  color: var(--graphite);
-}
-
-.page-readonly-meta {
+.page-readonly-footer {
   margin-top: 1rem;
-  padding-top: 0.5rem;
-  border-top: 1px dashed color-mix(in srgb, var(--pencil) 20%, transparent);
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--pencil) 12%, transparent);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+}
+
+.readonly-word-count {
   font-family: 'IBM Plex Sans', sans-serif;
   font-size: 0.75rem;
   color: var(--pencil);
-  letter-spacing: 0.03em;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
 }
 
 /* ── Read-Only Markdown Content ── */
@@ -681,7 +666,7 @@ main {
   opacity: 0.5;
 }
 
-.page-save-group {
+.page-save-group:not([hidden]) {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1280,17 +1265,6 @@ body {
     font-size: 0.75rem;
   }
 
-  .page-readonly {
-    position: relative;
-  }
-  .page-readonly-close {
-    position: absolute;
-    bottom: 0.5rem;
-    right: 0.5rem;
-    width: 1.375rem;
-    height: 1.375rem;
-    font-size: 0.8125rem;
-  }
 }
 
 @media (max-width: 480px) {
@@ -1318,17 +1292,6 @@ body {
     font-size: 0.75rem;
   }
 
-  .page-readonly {
-    position: relative;
-  }
-  .page-readonly-close {
-    position: absolute;
-    bottom: 0.5rem;
-    right: 0.5rem;
-    width: 1.375rem;
-    height: 1.375rem;
-    font-size: 0.8125rem;
-  }
 
   .glow {
     width: 500px;
@@ -1382,17 +1345,6 @@ body {
     font-size: 0.6875rem;
   }
 
-  .page-readonly {
-    position: relative;
-  }
-  .page-readonly-close {
-    position: absolute;
-    bottom: 0.4rem;
-    right: 0.4rem;
-    width: 1.25rem;
-    height: 1.25rem;
-    font-size: 0.75rem;
-  }
 
   .glow {
     width: 400px;
