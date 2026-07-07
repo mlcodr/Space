@@ -94,7 +94,7 @@
             <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
             </svg>
-            <span class="folder-toggle-text">Folders (tap to expand)</span>
+            <span class="folder-toggle-text">Folders</span>
           </span>
           <svg class="folder-toggle-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="6 9 12 15 18 9"></polyline>
@@ -661,7 +661,6 @@
       if (window.innerWidth <= 640 && folderListEl.classList.contains('folder-list--open')) {
         folderListEl.classList.remove('folder-list--open');
         folderToggleArrow.classList.remove('folder-toggle-arrow--rotated');
-        folderToggleText.textContent = 'Folders (tap to expand)';
       }
     }
 
@@ -1508,7 +1507,6 @@
     folderToggleBtn.addEventListener('click', () => {
       const isOpen = folderListEl.classList.toggle('folder-list--open');
       folderToggleArrow.classList.toggle('folder-toggle-arrow--rotated', isOpen);
-      folderToggleText.textContent = isOpen ? 'Folders (tap to collapse)' : 'Folders (tap to expand)';
     });
 
     // ── Dragstart Auto-Expand folders ──
@@ -1518,7 +1516,6 @@
         if (window.innerWidth <= 640 && !folderListEl.classList.contains('folder-list--open')) {
           folderListEl.classList.add('folder-list--open');
           folderToggleArrow.classList.add('folder-toggle-arrow--rotated');
-          folderToggleText.textContent = 'Folders (tap to collapse)';
         }
       }
     });
