@@ -1254,26 +1254,38 @@
       row.setAttribute('role', 'button');
       row.setAttribute('tabindex', '0');
 
-      const infoCol = document.createElement('div');
-      infoCol.className = 'entry-info-col';
+      // Column 1: Date & Time
+      const dateTimeCol = document.createElement('div');
+      dateTimeCol.className = 'entry-date-time-col';
 
       const dateEl = document.createElement('time');
       dateEl.className = 'entry-date';
       dateEl.setAttribute('datetime', new Date(t.createdAt).toISOString());
       dateEl.textContent = formatFullMonthDate(t.createdAt);
-      infoCol.appendChild(dateEl);
+      dateTimeCol.appendChild(dateEl);
 
       const timeEl = document.createElement('div');
       timeEl.className = 'entry-time';
       timeEl.textContent = formatTimeShort(t.createdAt);
-      infoCol.appendChild(timeEl);
+      dateTimeCol.appendChild(timeEl);
+
+      row.appendChild(dateTimeCol);
+
+      // Column 2: Group & Tag
+      const metaCol = document.createElement('div');
+      metaCol.className = 'entry-meta-col';
 
       const hasFolder = t.folderId && getFolderName(t.folderId);
       if (hasFolder) {
         const folderEl = document.createElement('span');
         folderEl.className = 'entry-folder';
         folderEl.textContent = getFolderName(t.folderId);
-        infoCol.appendChild(folderEl);
+        metaCol.appendChild(folderEl);
+      } else {
+        const placeholder = document.createElement('span');
+        placeholder.className = 'entry-meta-placeholder';
+        placeholder.innerHTML = '&nbsp;';
+        metaCol.appendChild(placeholder);
       }
 
       const hasTag = t.tag;
@@ -1281,11 +1293,17 @@
         const tagEl = document.createElement('span');
         tagEl.className = 'entry-tag';
         tagEl.textContent = t.tag;
-        infoCol.appendChild(tagEl);
+        metaCol.appendChild(tagEl);
+      } else {
+        const placeholder = document.createElement('span');
+        placeholder.className = 'entry-meta-placeholder';
+        placeholder.innerHTML = '&nbsp;';
+        metaCol.appendChild(placeholder);
       }
 
-      row.appendChild(infoCol);
+      row.appendChild(metaCol);
 
+      // Column 3: Excerpt (Body)
       const bodyCol = document.createElement('div');
       bodyCol.className = 'entry-body-col';
 
