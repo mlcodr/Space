@@ -76,6 +76,12 @@
         <div class="page-readonly" id="pageReadonly" hidden>
           <div class="page-readonly-body" id="pageReadonlyBody"></div>
           <div class="page-readonly-footer" id="pageReadonlyFooter">
+            <button class="readonly-copy-btn" id="readonlyCopyBtn" aria-label="Copy thought text">
+              <svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
             <span class="readonly-word-count" id="readonlyWordCount">0 words</span>
           </div>
         </div>
@@ -657,6 +663,7 @@
     const pageReadonlyBody = document.getElementById('pageReadonlyBody');
     const editorWordCount = document.getElementById('editorWordCount');
     const readonlyWordCount = document.getElementById('readonlyWordCount');
+    const readonlyCopyBtn = document.getElementById('readonlyCopyBtn');
     const folderToggleBtn = document.getElementById('folderToggleBtn');
     const folderToggleText = folderToggleBtn.querySelector('.folder-toggle-text');
     const folderToggleArrow = folderToggleBtn.querySelector('.folder-toggle-arrow');
@@ -1528,6 +1535,27 @@
 
     // ── Click to Close Read-Only View ──
     pageReadonly.addEventListener('click', exitReadMode);
+
+    // ── Copy Thought in Read-Only View ──
+    readonlyCopyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const currentThought = thoughts.find(x => x.id === readModeThoughtId);
+      if (currentThought) {
+        navigator.clipboard.writeText(currentThought.body).then(() => {
+          const origHTML = readonlyCopyBtn.innerHTML;
+          readonlyCopyBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--lichen)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 1rem; height: 1rem;">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          `;
+          setTimeout(() => {
+            readonlyCopyBtn.innerHTML = origHTML;
+          }, 1500);
+        }).catch(err => {
+          console.warn('[Space] Failed to copy text:', err);
+        });
+      }
+    });
 
     // ── Folder Collapse/Expand Toggle ──
     folderToggleBtn.addEventListener('click', () => {
