@@ -77,7 +77,10 @@
           <div class="page-readonly-body" id="pageReadonlyBody"></div>
           <button class="page-readonly-close" id="pageReadonlyClose" aria-label="Close read-only view">&times;</button>
         </div>
-        <button class="save-btn" id="saveBtn">Save thought</button>
+        <div class="page-save-group" id="pageSaveGroup">
+          <button class="save-btn" id="saveBtn">Save thought</button>
+          <button class="cancel-btn" id="cancelBtn" hidden>Cancel</button>
+        </div>
         <div class="save-status" id="saveStatus"></div>
         <div class="sync-status" id="syncStatus" hidden></div>
       </div>
@@ -92,14 +95,26 @@
         </svg>
         <input type="search" class="search-input" id="searchInput" placeholder="search your thoughts">
       </div>
+      <button class="tray-toggle-btn" id="trayToggleBtn" aria-label="Toggle thoughts list" style="display: none;">
+        <span class="arrow-icon">&lt;</span>
+      </button>
     </div>
 
-    <div class="split-layout">
-      <div class="folder-panel" id="folderPanel">
-        <div class="folder-list" id="folderList"></div>
+    <div class="tray-backdrop" id="trayBackdrop" style="display: none;"></div>
+    <div class="tray" id="tray">
+      <div class="tray-header" style="display: none;">
+        <h2 class="tray-title">Your Space</h2>
+        <button class="tray-close-btn" id="trayCloseBtn" aria-label="Close tray">&times;</button>
       </div>
-      <div class="entries-panel" id="entriesPanel">
-        <div class="entries" id="entries"></div>
+      <div class="tray-content">
+        <div class="split-layout">
+          <div class="folder-panel" id="folderPanel">
+            <div class="folder-list" id="folderList"></div>
+          </div>
+          <div class="entries-panel" id="entriesPanel">
+            <div class="entries" id="entries"></div>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -628,12 +643,19 @@
     const tagInput = document.getElementById('tagInput');
     const thoughtInput = document.getElementById('thoughtInput');
     const saveBtn = document.getElementById('saveBtn');
+    const pageSaveGroup = document.getElementById('pageSaveGroup');
+    const cancelBtn = document.getElementById('cancelBtn');
     const searchInput = document.getElementById('searchInput');
     const entriesEl = document.getElementById('entries');
     const folderListEl = document.getElementById('folderList');
     const pageReadonly = document.getElementById('pageReadonly');
     const pageReadonlyBody = document.getElementById('pageReadonlyBody');
     const pageReadonlyClose = document.getElementById('pageReadonlyClose');
+    const tray = document.getElementById('tray');
+    const trayToggleBtn = document.getElementById('trayToggleBtn');
+    const trayBackdrop = document.getElementById('trayBackdrop');
+    const trayCloseBtn = document.getElementById('trayCloseBtn');
+    const arrowIcon = trayToggleBtn.querySelector('.arrow-icon');
     let readModeActive = false;
     let readModeThoughtId = null;
 
@@ -646,8 +668,9 @@
       pageReadonly.hidden = false;
       thoughtInput.hidden = true;
       tagInput.hidden = true;
-      saveBtn.hidden = true;
+      pageSaveGroup.hidden = true;
       saveStatus.hidden = true;
+      if (typeof closeTray === 'function') closeTray();
     }
 
     function exitReadMode() {
@@ -658,10 +681,12 @@
       pageReadonlyBody.hidden = true;
       thoughtInput.hidden = false;
       tagInput.hidden = false;
-      saveBtn.hidden = false;
+      pageSaveGroup.hidden = false;
+      cancelBtn.hidden = true;
       saveStatus.hidden = false;
       thoughtInput.value = '';
       tagInput.value = '';
+      adjustScrollAndHeight(false);
     }
 
     pageReadonlyClose.addEventListener('click', () => {
@@ -715,6 +740,78 @@
       }
       if (inList) result.push('</ul>');
       return result.join('\n');
+    }
+
+    // ── Caret Tracking & Auto-Grow Helpers ──
+    let lastCaretY = 0;
+
+    function adjustScrollAndHeight(shouldScroll = true) {
+      const textarea = thoughtInput;
+      const val = textarea.value;
+
+      let mirror = document.getElementById('textarea-mirror');
+      if (!mirror) {
+        mirror = document.createElement('div');
+        mirror.id = 'textarea-mirror';
+        mirror.style.position = 'absolute';
+        mirror.style.visibility = 'hidden';
+        mirror.style.top = '0';
+        mirror.style.left = '-9999px';
+        mirror.style.height = 'auto';
+        mirror.style.overflow = 'hidden';
+        mirror.style.whiteSpace = 'pre-wrap';
+        mirror.style.wordBreak = 'break-word';
+        mirror.style.overflowWrap = 'break-word';
+
+        const style = window.getComputedStyle(textarea);
+        const properties = [
+          'fontFamily', 'fontSize', 'fontWeight', 'lineHeight',
+          'paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight',
+          'borderWidth', 'borderStyle', 'boxSizing'
+        ];
+        properties.forEach(prop => {
+          mirror.style[prop] = style[prop];
+        });
+        document.body.appendChild(mirror);
+      }
+
+      // Sync width
+      mirror.style.width = window.getComputedStyle(textarea).width;
+      
+      // Calculate true height from full content
+      mirror.textContent = val;
+      const trueHeight = mirror.scrollHeight;
+      const targetHeight = Math.max(160, trueHeight);
+
+      // Only set height if it actually changed to allow uninterrupted CSS transition
+      const currentHeight = parseFloat(textarea.style.height) || textarea.offsetHeight;
+      if (Math.abs(currentHeight - targetHeight) > 1) {
+        textarea.style.height = targetHeight + 'px';
+      }
+
+      // Calculate relative caret Y offset using the same mirror
+      const selStart = textarea.selectionStart;
+      mirror.textContent = val.slice(0, selStart);
+      const marker = document.createElement('span');
+      marker.textContent = '|';
+      mirror.appendChild(marker);
+      const caretY = marker.offsetTop;
+
+      // Smooth scroll adjustment
+      if (shouldScroll && caretY > lastCaretY) {
+        const textareaRect = textarea.getBoundingClientRect();
+        const caretScreenY = textareaRect.top + caretY;
+        const targetY = window.innerHeight * 0.45;
+
+        if (caretScreenY > targetY) {
+          window.scrollBy({
+            top: caretScreenY - targetY,
+            behavior: 'smooth'
+          });
+        }
+      }
+
+      lastCaretY = caretY;
     }
 
     // ── Helpers ──
@@ -1131,7 +1228,7 @@
 
       const excerpt = document.createElement('p');
       excerpt.className = 'entry-excerpt';
-      excerpt.innerHTML = truncate(renderInlineMarkdown(stripBlockMarkers(t.body)), 70);
+      excerpt.innerHTML = renderInlineMarkdown(truncate(stripBlockMarkers(t.body), 70));
 
       row.appendChild(dateEl);
 
@@ -1312,7 +1409,10 @@
       thoughtInput.value = t.body;
       tagInput.value = t.tag || '';
       saveBtn.textContent = 'Update thought';
+      cancelBtn.hidden = false;
       thoughtInput.focus();
+      adjustScrollAndHeight(false);
+      if (typeof closeTray === 'function') closeTray();
       page.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -1322,6 +1422,7 @@
       thoughts = thoughts.filter(t => t.id !== id);
       editingId = null;
       saveBtn.textContent = 'Save thought';
+      cancelBtn.hidden = true;
       await saveEncryptedLocally();
       renderFolderList();
       renderEntries();
@@ -1345,6 +1446,7 @@
         t.updatedAt = Date.now();
         editingId = null;
         saveBtn.textContent = 'Save thought';
+        cancelBtn.hidden = true;
 
         // Save locally first, update UI immediately
         await saveEncryptedLocally();
@@ -1352,6 +1454,7 @@
         renderEntries();
         thoughtInput.value = '';
         tagInput.value = '';
+        adjustScrollAndHeight(false);
         triggerPulse();
 
         // Background sync to GitHub
@@ -1375,6 +1478,7 @@
         renderEntries();
         thoughtInput.value = '';
         tagInput.value = '';
+        adjustScrollAndHeight(false);
         triggerPulse();
 
         // Background sync to GitHub
@@ -1383,10 +1487,49 @@
       }
     });
 
+    cancelBtn.addEventListener('click', () => {
+      editingId = null;
+      saveBtn.textContent = 'Save thought';
+      cancelBtn.hidden = true;
+      thoughtInput.value = '';
+      tagInput.value = '';
+      adjustScrollAndHeight(false);
+    });
+
     // ── Search ──
     searchInput.addEventListener('input', () => {
       applyFilter();
     });
+
+    // ── Tray Toggle ──
+    function openTray() {
+      tray.classList.add('tray--open');
+      trayBackdrop.classList.add('tray-backdrop--active');
+      arrowIcon.innerHTML = '&gt;';
+    }
+
+    function closeTray() {
+      tray.classList.remove('tray--open');
+      trayBackdrop.classList.remove('tray-backdrop--active');
+      arrowIcon.innerHTML = '&lt;';
+    }
+
+    trayToggleBtn.addEventListener('click', () => {
+      if (tray.classList.contains('tray--open')) {
+        closeTray();
+      } else {
+        openTray();
+      }
+    });
+
+    trayBackdrop.addEventListener('click', closeTray);
+    trayCloseBtn.addEventListener('click', closeTray);
+
+    // ── Caret / Resize Listeners ──
+    thoughtInput.addEventListener('input', () => adjustScrollAndHeight(true));
+    thoughtInput.addEventListener('keyup', () => adjustScrollAndHeight(false));
+    thoughtInput.addEventListener('click', () => adjustScrollAndHeight(false));
+    thoughtInput.addEventListener('focus', () => adjustScrollAndHeight(false));
 
     // ── Online event: sync pending changes ──
     window.addEventListener('online', () => {
