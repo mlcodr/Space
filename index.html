@@ -75,12 +75,13 @@
         <textarea class="thought-input" id="thoughtInput" placeholder="what's on your mind?" aria-label="Write your thoughts"></textarea>
         <div class="page-readonly" id="pageReadonly" hidden>
           <div class="page-readonly-body" id="pageReadonlyBody"></div>
-          <div class="page-readonly-meta" id="pageReadonlyMeta"></div>
-          <button class="page-readonly-close" id="pageReadonlyClose" aria-label="Close read-only view">&times;</button>
         </div>
         <div class="page-save-group" id="pageSaveGroup">
-          <button class="save-btn" id="saveBtn">Save thought</button>
-          <button class="cancel-btn" id="cancelBtn" hidden>Cancel</button>
+          <div class="page-save-buttons">
+            <button class="save-btn" id="saveBtn">Save thought</button>
+            <button class="cancel-btn" id="cancelBtn" hidden>Cancel</button>
+          </div>
+          <span class="editor-word-count" id="editorWordCount">0 words</span>
         </div>
         <div class="save-status" id="saveStatus"></div>
         <div class="sync-status" id="syncStatus" hidden></div>
@@ -651,8 +652,7 @@
     const folderListEl = document.getElementById('folderList');
     const pageReadonly = document.getElementById('pageReadonly');
     const pageReadonlyBody = document.getElementById('pageReadonlyBody');
-    const pageReadonlyClose = document.getElementById('pageReadonlyClose');
-    const pageReadonlyMeta = document.getElementById('pageReadonlyMeta');
+    const editorWordCount = document.getElementById('editorWordCount');
     const folderToggleBtn = document.getElementById('folderToggleBtn');
     const folderToggleText = folderToggleBtn.querySelector('.folder-toggle-text');
     const folderToggleArrow = folderToggleBtn.querySelector('.folder-toggle-arrow');
@@ -672,20 +672,11 @@
       return cleanText ? cleanText.split(/\s+/).length : 0;
     }
 
-    function calculateReadingTime(wordCount) {
-      const wpm = 200;
-      return Math.ceil(wordCount / wpm);
-    }
-
     // ── Read-Only Mode ──
     function enterReadMode(id, body, tag) {
       readModeActive = true;
       readModeThoughtId = id;
       pageReadonlyBody.innerHTML = renderFullMarkdown(body);
-
-      const wordCount = calculateWordCount(body);
-      const readingTime = calculateReadingTime(wordCount);
-      pageReadonlyMeta.textContent = `${wordCount} words · ${readingTime} min read`;
 
       pageReadonlyBody.hidden = false;
       pageReadonly.hidden = false;
@@ -835,6 +826,10 @@
       }
 
       lastCaretY = caretY;
+
+      // Update live word count in editor
+      const count = calculateWordCount(val);
+      editorWordCount.textContent = count === 1 ? '1 word' : `${count} words`;
     }
 
     // ── Helpers ──
@@ -1520,6 +1515,9 @@
     searchInput.addEventListener('input', () => {
       applyFilter();
     });
+
+    // ── Click to Close Read-Only View ──
+    pageReadonly.addEventListener('click', exitReadMode);
 
     // ── Folder Collapse/Expand Toggle ──
     folderToggleBtn.addEventListener('click', () => {
