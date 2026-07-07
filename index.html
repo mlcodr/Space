@@ -1526,6 +1526,11 @@
     folderToggleBtn.addEventListener('click', () => {
       const isOpen = folderListEl.classList.toggle('folder-list--open');
       folderToggleArrow.classList.toggle('folder-toggle-arrow--rotated', isOpen);
+      if (!isOpen && currentView !== 'list') {
+        currentView = 'list';
+        renderFolderList();
+        renderEntries();
+      }
     });
 
     // ── Dragstart Auto-Expand folders ──
