@@ -649,6 +649,7 @@ main {
   flex: 0 0 80px;
   min-width: 80px;
   max-width: 80px;
+  margin-right: 0.25rem;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -659,6 +660,7 @@ main {
   flex: 0 0 80px;
   min-width: 80px;
   max-width: 80px;
+  margin-right: 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -804,7 +806,6 @@ main {
 .entry-row {
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
   cursor: pointer;
 }
 
@@ -1317,18 +1318,17 @@ body {
     font-size: 0.8125rem;
   }
 
-  .entry-row {
-    gap: 0.5rem;
-  }
   .entry-date-time-col {
     flex: 0 0 75px;
     min-width: 75px;
     max-width: 75px;
+    margin-right: 0.2rem;
   }
   .entry-meta-col {
     flex: 0 0 75px;
     min-width: 75px;
     max-width: 75px;
+    margin-right: 0.5rem;
   }
 
   .entry-action-btn,
