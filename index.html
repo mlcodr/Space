@@ -90,9 +90,15 @@
     <div class="split-layout">
       <div class="folder-panel" id="folderPanel">
         <button class="folder-toggle-btn" id="folderToggleBtn">
-          <span class="folder-toggle-icon">📁</span>
-          <span class="folder-toggle-text">Folders (tap to expand)</span>
-          <span class="folder-toggle-arrow">▾</span>
+          <span class="folder-toggle-left">
+            <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span class="folder-toggle-text">Folders (tap to expand)</span>
+          </span>
+          <svg class="folder-toggle-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
         </button>
         <div class="folder-list" id="folderList"></div>
       </div>
@@ -654,7 +660,7 @@
     function collapseFolders() {
       if (window.innerWidth <= 640 && folderListEl.classList.contains('folder-list--open')) {
         folderListEl.classList.remove('folder-list--open');
-        folderToggleArrow.textContent = '▾';
+        folderToggleArrow.classList.remove('folder-toggle-arrow--rotated');
         folderToggleText.textContent = 'Folders (tap to expand)';
       }
     }
@@ -851,37 +857,8 @@
     function renderFolderList(highlightId = null) {
       folderListEl.innerHTML = '';
 
-      // "All thoughts" row
-      const allRow = document.createElement('button');
-      allRow.className = 'folder-row folder-row-all';
-      if (currentView === 'list') allRow.classList.add('folder-row--active');
-      allRow.dataset.folderId = '__all__';
-      if (highlightId === '__all__') allRow.classList.add('folder-row--dropped');
-      
-      const allName = document.createElement('span');
-      allName.className = 'folder-row-name';
-      allName.textContent = 'All thoughts';
-      
-      const allCount = document.createElement('span');
-      allCount.className = 'folder-row-count';
-      allCount.textContent = thoughts.length;
-      if (highlightId === '__all__') {
-        allCount.classList.add('folder-row-count--pop');
-        setTimeout(() => allCount.classList.remove('folder-row-count--pop'), 300);
-      }
-      allRow.appendChild(allName);
-      allRow.appendChild(allCount);
-      allRow.addEventListener('click', () => selectFolder('list'));
-      // Drop target for unfiled
-      allRow.addEventListener('dragover', (e) => { e.preventDefault(); allRow.classList.add('folder-row--drag-over'); });
-      allRow.addEventListener('dragleave', () => allRow.classList.remove('folder-row--drag-over'));
-      allRow.addEventListener('drop', (e) => {
-        e.preventDefault();
-        allRow.classList.remove('folder-row--drag-over');
-        const thoughtId = e.dataTransfer.getData('text/plain');
-        if (thoughtId) moveThoughtToFolder(thoughtId, null);
-      });
-      folderListEl.appendChild(allRow);
+      // Update search placeholder to show thought count dynamically
+      searchInput.placeholder = 'search your thoughts - ' + thoughts.length;
 
       // Folder rows
       folders.forEach(folder => {
@@ -970,7 +947,11 @@
     }
 
     function selectFolder(folderId) {
-      currentView = folderId;
+      if (currentView === folderId) {
+        currentView = 'list';
+      } else {
+        currentView = folderId;
+      }
       renderFolderList();
       renderEntries();
     }
@@ -1526,7 +1507,7 @@
     // ── Folder Collapse/Expand Toggle ──
     folderToggleBtn.addEventListener('click', () => {
       const isOpen = folderListEl.classList.toggle('folder-list--open');
-      folderToggleArrow.textContent = isOpen ? '▴' : '▾';
+      folderToggleArrow.classList.toggle('folder-toggle-arrow--rotated', isOpen);
       folderToggleText.textContent = isOpen ? 'Folders (tap to collapse)' : 'Folders (tap to expand)';
     });
 
@@ -1536,7 +1517,7 @@
       if (entry) {
         if (window.innerWidth <= 640 && !folderListEl.classList.contains('folder-list--open')) {
           folderListEl.classList.add('folder-list--open');
-          folderToggleArrow.textContent = '▴';
+          folderToggleArrow.classList.add('folder-toggle-arrow--rotated');
           folderToggleText.textContent = 'Folders (tap to collapse)';
         }
       }
