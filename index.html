@@ -75,6 +75,7 @@
         <textarea class="thought-input" id="thoughtInput" placeholder="what's on your mind?" aria-label="Write your thoughts"></textarea>
         <div class="page-readonly" id="pageReadonly" hidden>
           <div class="page-readonly-body" id="pageReadonlyBody"></div>
+          <div class="page-readonly-meta" id="pageReadonlyMeta"></div>
           <button class="page-readonly-close" id="pageReadonlyClose" aria-label="Close read-only view">&times;</button>
         </div>
         <div class="page-save-group" id="pageSaveGroup">
@@ -651,6 +652,7 @@
     const pageReadonly = document.getElementById('pageReadonly');
     const pageReadonlyBody = document.getElementById('pageReadonlyBody');
     const pageReadonlyClose = document.getElementById('pageReadonlyClose');
+    const pageReadonlyMeta = document.getElementById('pageReadonlyMeta');
     const folderToggleBtn = document.getElementById('folderToggleBtn');
     const folderToggleText = folderToggleBtn.querySelector('.folder-toggle-text');
     const folderToggleArrow = folderToggleBtn.querySelector('.folder-toggle-arrow');
@@ -664,11 +666,27 @@
       }
     }
 
+    function calculateWordCount(text) {
+      if (!text) return 0;
+      const cleanText = text.trim();
+      return cleanText ? cleanText.split(/\s+/).length : 0;
+    }
+
+    function calculateReadingTime(wordCount) {
+      const wpm = 200;
+      return Math.ceil(wordCount / wpm);
+    }
+
     // ── Read-Only Mode ──
     function enterReadMode(id, body, tag) {
       readModeActive = true;
       readModeThoughtId = id;
       pageReadonlyBody.innerHTML = renderFullMarkdown(body);
+
+      const wordCount = calculateWordCount(body);
+      const readingTime = calculateReadingTime(wordCount);
+      pageReadonlyMeta.textContent = `${wordCount} words · ${readingTime} min read`;
+
       pageReadonlyBody.hidden = false;
       pageReadonly.hidden = false;
       thoughtInput.hidden = true;

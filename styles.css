@@ -230,6 +230,19 @@ main {
   color: var(--graphite);
 }
 
+.page-readonly-meta {
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed color-mix(in srgb, var(--pencil) 20%, transparent);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.75rem;
+  color: var(--pencil);
+  letter-spacing: 0.03em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 /* ── Read-Only Markdown Content ── */
 .page-readonly-body h2 {
   font-family: 'IBM Plex Sans', sans-serif;
