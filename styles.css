@@ -1388,165 +1388,144 @@ body {
   }
 }
 
-/* ── Tray Layout (Desktop Default: Transparent Wrapper) ── */
-.tray-toggle-btn {
+/* ── Collapsible Folder Section ── */
+.folder-toggle-btn {
   display: none;
 }
 
-.tray-backdrop {
-  display: none;
+/* Base styles for folder row animations */
+.folder-row {
+  transition: background-color 250ms ease, transform 200ms cubic-bezier(0.25, 1, 0.5, 1), border-color 250ms ease, box-shadow 250ms ease;
 }
 
-.tray-header {
-  display: none;
+/* Drag hover magnet state */
+.folder-row.folder-row--drag-over {
+  background-color: color-mix(in srgb, var(--lichen) 12%, transparent) !important;
+  border-color: var(--lichen) !important;
+  transform: scale(1.03);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-.tray {
-  position: static;
-  width: auto;
-  height: auto;
-  background: transparent;
-  box-shadow: none;
-  border-left: none;
-  transform: none;
-  transition: none;
-  padding: 0;
-  display: block;
+/* absorbPulse animation for successful drops */
+@keyframes absorbPulse {
+  0% {
+    transform: scale(1);
+    background-color: transparent;
+  }
+  30% {
+    transform: scale(1.08);
+    background-color: color-mix(in srgb, var(--lichen) 20%, transparent);
+  }
+  100% {
+    transform: scale(1);
+    background-color: transparent;
+  }
 }
 
-.tray-content {
-  overflow-y: visible;
+.folder-row--dropped {
+  animation: absorbPulse 350ms cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
-/* ── Tray Layout (Mobile Collapsed sliding drawer) ── */
+/* Spring pop for numerical badge count */
+.folder-row-count {
+  transition: transform 250ms cubic-bezier(0.175, 0.885, 0.32, 1.275), color 250ms ease;
+}
+
+.folder-row-count--pop {
+  transform: scale(1.25) translateY(-2px);
+  color: var(--lichen);
+}
+
+/* Entry card transfer exit fade */
+.entry {
+  transition: opacity 250ms ease, transform 250ms cubic-bezier(0.25, 1, 0.5, 1), margin-bottom 250ms ease, max-height 250ms ease;
+}
+
+.entry--transferring {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
+  max-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+  border: none !important;
+  overflow: hidden;
+}
+
+/* ── Mobile Collapsible Stacking overrides ── */
 @media (max-width: 640px) {
-  .controls {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  
-  .tray-toggle-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 50%;
-    border: 1px solid var(--lichen);
-    background: transparent;
-    color: var(--lichen);
-    cursor: pointer;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 1.1rem;
-    font-weight: bold;
-    flex-shrink: 0;
-    transition: background-color 200ms ease;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  }
-  
-  .tray-toggle-btn:hover {
-    background: color-mix(in srgb, var(--lichen) 12%, transparent);
-  }
-
-  .tray-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(27, 29, 35, 0.4);
-    z-index: 450;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 300ms ease;
-  }
-  
-  [data-theme="light"] .tray-backdrop {
-    background: rgba(42, 40, 35, 0.25);
-  }
-
-  .tray-backdrop--active {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .tray {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    max-width: 100vw;
-    background: var(--paper);
-    border-left: 1px solid color-mix(in srgb, var(--pencil) 20%, transparent);
-    box-shadow: -4px 0 24px rgba(0,0,0,0.15);
-    z-index: 500;
-    transform: translateX(100%);
-    transition: transform 300ms cubic-bezier(0.25, 1, 0.5, 1), background-color 300ms ease;
+  .split-layout {
     display: flex;
     flex-direction: column;
-    padding: 1.25rem 1rem;
+    gap: 1.25rem;
   }
 
-  .tray--open {
-    transform: translateX(0);
-  }
-
-  .tray-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.25rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--pencil) 12%, transparent);
-  }
-
-  .tray-title {
-    font-family: 'Lora', serif;
-    font-size: 1.2rem;
-    font-weight: 500;
-    color: var(--graphite);
-    margin: 0;
-  }
-
-  .tray-close-btn {
-    background: transparent;
-    border: none;
-    color: var(--pencil);
-    font-size: 1.35rem;
-    cursor: pointer;
-    line-height: 1;
-    padding: 0.2rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.85rem;
-    height: 1.85rem;
-    border-radius: 50%;
-    transition: background-color 200ms ease, color 200ms ease;
-  }
-
-  .tray-close-btn:hover {
-    background: color-mix(in srgb, var(--pencil) 12%, transparent);
-    color: var(--graphite);
-  }
-
-  .tray-content {
+  .folder-panel {
     flex: 1;
-    overflow-y: auto;
-    min-height: 0;
-    padding-right: 0.25rem;
+    width: 100%;
+    max-width: 100%;
+    order: 1; /* Folders at top */
   }
 
-  /* Custom scrollbar for tray content */
-  .tray-content::-webkit-scrollbar {
-    width: 6px;
+  .folder-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid color-mix(in srgb, var(--pencil) 20%, transparent);
+    border-radius: 8px;
+    background: var(--paper);
+    color: var(--graphite);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 200ms ease, border-color 200ms ease;
+    outline: none;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
   }
-  .tray-content::-webkit-scrollbar-track {
-    background: transparent;
+
+  .folder-toggle-btn:hover,
+  .folder-toggle-btn:focus-visible {
+    background: color-mix(in srgb, var(--paper) 95%, var(--graphite));
+    border-color: color-mix(in srgb, var(--pencil) 40%, transparent);
   }
-  .tray-content::-webkit-scrollbar-thumb {
-    background: color-mix(in srgb, var(--pencil) 30%, transparent);
-    border-radius: 3px;
+
+  .folder-toggle-icon {
+    margin-right: 0.5rem;
+  }
+
+  .folder-toggle-arrow {
+    font-family: monospace;
+    font-size: 1rem;
+    color: var(--pencil);
+  }
+
+  /* Folders collapsible list wrapper */
+  .folder-list {
+    display: none;
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--pencil) 12%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--paper) 98%, var(--graphite));
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  .folder-list.folder-list--open {
+    display: block;
+  }
+
+  .controls {
+    order: 2; /* Search bar in middle */
+    width: 100%;
+    margin-bottom: 0 !important;
+  }
+
+  .entries-panel {
+    order: 3; /* Thoughts at bottom */
+    width: 100%;
   }
 }
