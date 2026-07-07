@@ -604,6 +604,9 @@ main {
   letter-spacing: 0.03em;
   white-space: nowrap;
   flex-shrink: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Entry Move Dropdown ── */
@@ -642,18 +645,35 @@ main {
   transform: translateY(0);
 }
 
+.entry-info-col {
+  flex: 0 0 110px;
+  min-width: 110px;
+  max-width: 110px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-start;
+}
+
+.entry-body-col {
+  flex: 1;
+  min-width: 0;
+}
+
 .entry-date {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.75rem;
-  color: var(--ink-muted);
-  white-space: nowrap;
-  flex-shrink: 0;
-  min-width: 3.5rem;
+  color: var(--graphite);
+  font-weight: 600;
+  line-height: 1.25;
 }
-.entry-metas {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
+
+.entry-time {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6875rem;
+  color: var(--pencil);
+  line-height: 1.2;
+  margin-bottom: 0.15rem;
 }
 .entry-excerpt {
   font-family: 'Lora', serif;
@@ -765,8 +785,8 @@ main {
 /* ── Entry Row (clickable summary) ── */
 .entry-row {
   display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
+  align-items: flex-start;
+  gap: 1.5rem;
   cursor: pointer;
 }
 
@@ -780,6 +800,9 @@ main {
   font-family: 'IBM Plex Sans', sans-serif;
   white-space: nowrap;
   flex-shrink: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: background-color 300ms ease, color 300ms ease;
 }
 

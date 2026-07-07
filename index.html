@@ -844,6 +844,13 @@
     }
 
     // ── Helpers ──
+    function formatFullMonthDate(ts) {
+      return new Date(ts).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+
     function formatShortDate(ts) {
       const d = new Date(ts);
       const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1247,38 +1254,47 @@
       row.setAttribute('role', 'button');
       row.setAttribute('tabindex', '0');
 
+      const infoCol = document.createElement('div');
+      infoCol.className = 'entry-info-col';
+
       const dateEl = document.createElement('time');
       dateEl.className = 'entry-date';
       dateEl.setAttribute('datetime', new Date(t.createdAt).toISOString());
-      dateEl.textContent = formatShortDate(t.createdAt) + ' \u00b7 ' + formatTimeShort(t.createdAt);
+      dateEl.textContent = formatFullMonthDate(t.createdAt);
+      infoCol.appendChild(dateEl);
+
+      const timeEl = document.createElement('div');
+      timeEl.className = 'entry-time';
+      timeEl.textContent = formatTimeShort(t.createdAt);
+      infoCol.appendChild(timeEl);
+
+      const hasFolder = t.folderId && getFolderName(t.folderId);
+      if (hasFolder) {
+        const folderEl = document.createElement('span');
+        folderEl.className = 'entry-folder';
+        folderEl.textContent = getFolderName(t.folderId);
+        infoCol.appendChild(folderEl);
+      }
+
+      const hasTag = t.tag;
+      if (hasTag) {
+        const tagEl = document.createElement('span');
+        tagEl.className = 'entry-tag';
+        tagEl.textContent = t.tag;
+        infoCol.appendChild(tagEl);
+      }
+
+      row.appendChild(infoCol);
+
+      const bodyCol = document.createElement('div');
+      bodyCol.className = 'entry-body-col';
 
       const excerpt = document.createElement('p');
       excerpt.className = 'entry-excerpt';
       excerpt.innerHTML = renderInlineMarkdown(truncate(stripBlockMarkers(t.body), 70));
+      bodyCol.appendChild(excerpt);
 
-      row.appendChild(dateEl);
-
-      const hasTag = t.tag;
-      const hasFolder = t.folderId && getFolderName(t.folderId);
-      if (hasTag || hasFolder) {
-        const metas = document.createElement('div');
-        metas.className = 'entry-metas';
-        if (hasTag) {
-          const tagEl = document.createElement('span');
-          tagEl.className = 'entry-tag';
-          tagEl.textContent = t.tag;
-          metas.appendChild(tagEl);
-        }
-        if (hasFolder) {
-          const folderEl = document.createElement('span');
-          folderEl.className = 'entry-folder';
-          folderEl.textContent = getFolderName(t.folderId);
-          metas.appendChild(folderEl);
-        }
-        row.appendChild(metas);
-      }
-
-      row.appendChild(excerpt);
+      row.appendChild(bodyCol);
 
       // Edit + Delete buttons (hidden by default)
       const actions = document.createElement('div');
