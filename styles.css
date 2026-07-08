@@ -1322,6 +1322,24 @@ body {
 
   .page {
     min-height: 55vh;
+    gap: 0.5rem;
+  }
+
+  /* Tighten separator + footer in read-only mode on mobile */
+  .page-readonly-footer {
+    margin-top: 0.35rem;
+    padding-top: 0.35rem;
+  }
+
+  /* Tighten separator + save area in write mode on mobile */
+  .page-save-group:not([hidden]) {
+    margin-top: 0.35rem;
+    padding-top: 0.35rem;
+  }
+
+  /* Remove extra internal gap in read-only container */
+  .page-readonly:not([hidden]) {
+    gap: 0.35rem;
   }
 
   .entry-excerpt {
