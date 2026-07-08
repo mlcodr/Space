@@ -927,54 +927,55 @@
         row.appendChild(menuWrapper);
 
         // Short click / Long press detection
-        let pressTimer = null;
-        let longPressed = false;
+        // Click / Multi-tap detection
+        let tapCount = 0;
+        let tapTimer = null;
         let startX = 0;
         let startY = 0;
-        const LONG_PRESS_MS = 600;
         const MOVE_THRESHOLD = 8;
-
-        function clearPress() {
-          if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-          row.classList.remove('folder-row--pressing');
-        }
+        let didMove = false;
 
         row.addEventListener('pointerdown', (e) => {
           if (e.button && e.button !== 0) return; // only primary button
-          longPressed = false;
           startX = e.clientX;
           startY = e.clientY;
+          didMove = false;
           row.classList.add('folder-row--pressing');
-          pressTimer = setTimeout(() => {
-            longPressed = true;
-            pressTimer = null;
-            row.classList.remove('folder-row--pressing');
-            toggleFolderMenu(menuWrapper, folder);
-          }, LONG_PRESS_MS);
         });
 
         row.addEventListener('pointermove', (e) => {
-          if (!pressTimer) return;
           const dx = e.clientX - startX;
           const dy = e.clientY - startY;
           if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
-            clearPress();
+            didMove = true;
+            row.classList.remove('folder-row--pressing');
           }
         });
 
         row.addEventListener('pointerup', (e) => {
-          if (longPressed) {
-            longPressed = false;
-            return; // already handled by long press
-          }
-          if (pressTimer) {
-            clearPress();
-            selectFolder(folder.id);
+          row.classList.remove('folder-row--pressing');
+          if (didMove) return; // ignore if they dragged/moved
+
+          tapCount++;
+          if (tapTimer) clearTimeout(tapTimer);
+
+          if (tapCount === 3) {
+            tapCount = 0;
+            tapTimer = null;
+            // Triple tap: Toggle Rename/Delete dropdown menu
+            toggleFolderMenu(menuWrapper, folder);
+          } else {
+            tapTimer = setTimeout(() => {
+              tapCount = 0;
+              tapTimer = null;
+              // Single/Double tap: Select the folder
+              selectFolder(folder.id);
+            }, 280);
           }
         });
 
-        row.addEventListener('pointercancel', () => { clearPress(); longPressed = false; });
-        row.addEventListener('pointerleave', () => { clearPress(); longPressed = false; });
+        row.addEventListener('pointercancel', () => { row.classList.remove('folder-row--pressing'); });
+        row.addEventListener('pointerleave', () => { row.classList.remove('folder-row--pressing'); });
         // Drop target
         row.addEventListener('dragover', (e) => { e.preventDefault(); row.classList.add('folder-row--drag-over'); });
         row.addEventListener('dragleave', () => row.classList.remove('folder-row--drag-over'));
@@ -1413,61 +1414,60 @@
       article.appendChild(actions);
       article.appendChild(confirm);
 
-      // ── Short click / Long press detection ──
-      let pressTimer = null;
-      let longPressed = false;
+      // ── Tap / Multi-tap detection ──
+      let tapCount = 0;
+      let tapTimer = null;
       let startX = 0;
       let startY = 0;
-      const LONG_PRESS_MS = 750;
       const MOVE_THRESHOLD = 8;
-
-      function clearPress() {
-        if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-        row.classList.remove('entry--pressing');
-      }
+      let didMove = false;
 
       row.addEventListener('pointerdown', (e) => {
         if (e.button && e.button !== 0) return; // only primary button
         if (draggedThoughtId) return;
-        longPressed = false;
         startX = e.clientX;
         startY = e.clientY;
+        didMove = false;
         row.classList.add('entry--pressing');
-        pressTimer = setTimeout(() => {
-          longPressed = true;
-          pressTimer = null;
-          row.classList.remove('entry--pressing');
-          // Reveal Edit/Delete, hide any other revealed row
-          document.querySelectorAll('.entry-actions:not([hidden])').forEach(el => el.hidden = true);
-          document.querySelectorAll('.entry-delete-confirm:not([hidden])').forEach(el => el.hidden = true);
-          actions.hidden = false;
-          confirm.hidden = true;
-        }, LONG_PRESS_MS);
       });
 
       row.addEventListener('pointermove', (e) => {
-        if (!pressTimer) return;
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
         if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
-          clearPress();
+          didMove = true;
+          row.classList.remove('entry--pressing');
         }
       });
 
       row.addEventListener('pointerup', (e) => {
-        if (longPressed) {
-          longPressed = false;
-          return; // already handled by long press
-        }
-        if (pressTimer) {
-          clearPress();
-          enterReadMode(t.id, t.body, t.tag);
-          page.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        row.classList.remove('entry--pressing');
+        if (didMove) return; // ignore if they dragged/moved
+
+        tapCount++;
+        if (tapTimer) clearTimeout(tapTimer);
+
+        if (tapCount === 3) {
+          tapCount = 0;
+          tapTimer = null;
+          // Triple tap: Reveal Edit/Delete actions bar
+          document.querySelectorAll('.entry-actions:not([hidden])').forEach(el => el.hidden = true);
+          document.querySelectorAll('.entry-delete-confirm:not([hidden])').forEach(el => el.hidden = true);
+          actions.hidden = false;
+          confirm.hidden = true;
+        } else {
+          tapTimer = setTimeout(() => {
+            tapCount = 0;
+            tapTimer = null;
+            // Single/Double tap: Enter read-only mode
+            enterReadMode(t.id, t.body, t.tag);
+            page.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 300);
         }
       });
 
-      row.addEventListener('pointercancel', () => { clearPress(); longPressed = false; });
-      row.addEventListener('pointerleave', () => { clearPress(); longPressed = false; });
+      row.addEventListener('pointercancel', () => { row.classList.remove('entry--pressing'); });
+      row.addEventListener('pointerleave', () => { row.classList.remove('entry--pressing'); });
 
       return article;
     }
