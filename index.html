@@ -383,6 +383,17 @@
 
     let syncing = false;
 
+    // Bumped on every local mutation so an in-flight sync can tell, once it
+    // finishes, whether newer changes arrived while it was uploading (and
+    // therefore weren't included in what it just pushed).
+    let dirtyVersion = 0;
+
+    function markDirty() {
+      dirtyVersion++;
+      setPendingSync(true);
+      syncToGitHub();
+    }
+
     // ── Background GitHub Sync ──
     async function syncToGitHub() {
       if (syncing) return;
@@ -392,6 +403,7 @@
 
       syncing = true;
       updatePendingStatus();
+      const versionAtStart = dirtyVersion;
 
       try {
         const enc = await encryptPayload({ thoughts, folders }, cryptoKey);
@@ -423,21 +435,29 @@
               } catch { /* keep same SHA */ }
             } else {
               console.warn('[Space] Sync failed:', e);
-              syncing = false;
-              updatePendingStatus();
               return;
             }
           }
         }
 
         currentSha = result.content.sha;
-        setPendingSync(false);
+        // Only clear the pending flag if nothing changed locally while this
+        // upload was in flight — otherwise we'd be lying about the newer,
+        // still-unsynced changes that this payload doesn't include.
+        if (dirtyVersion === versionAtStart) {
+          setPendingSync(false);
+        }
         console.log('[Space] Sync successful');
       } catch (e) {
         console.warn('[Space] Sync error:', e);
       } finally {
         syncing = false;
         updatePendingStatus();
+        // Newer changes piled up mid-flight (or this attempt failed) — try
+        // again now instead of waiting for another user action to notice.
+        if (dirtyVersion !== versionAtStart) {
+          syncToGitHub();
+        }
       }
     }
 
@@ -582,10 +602,9 @@
           thoughts = decrypted.thoughts || [];
           folders = decrypted.folders || [];
           currentSha = null; // No GitHub SHA yet
-          setPendingSync(true); // Local is newer
           revealJournal();
           // Try to create GitHub file in background
-          syncToGitHub();
+          markDirty(); // Local is newer
           return;
         }
 
@@ -598,11 +617,10 @@
         currentSha = null;
 
         await saveEncryptedLocally();
-        setPendingSync(true);
         revealJournal();
 
         // Create GitHub file in background
-        syncToGitHub();
+        markDirty();
       } catch (e) {
         console.error('[Space] Error:', e);
         showPinError('Something went wrong: ' + e.message);
@@ -859,7 +877,20 @@
 
     function truncate(str, len) {
       if (str.length <= len) return str;
-      return str.slice(0, len).trimEnd() + '\u2026';
+      // Split into Unicode code points (not UTF-16 code units) so a slice
+      // never lands in the middle of a surrogate pair \u2014 plain str.slice(0, len)
+      // can cut an emoji in half and leave an orphan surrogate behind.
+      const chars = Array.from(str);
+      if (chars.length <= len) return str;
+      let truncated = chars.slice(0, len).join('').trimEnd();
+      // If the cut leaves an odd number of "**" markers, a bold span was
+      // opened but never closed \u2014 drop the dangling marker so a raw "**"
+      // doesn't leak into the rendered excerpt.
+      const starPairs = (truncated.match(/\*\*/g) || []).length;
+      if (starPairs % 2 !== 0) {
+        truncated = truncated.replace(/\*\*$/, '').trimEnd();
+      }
+      return truncated + '\u2026';
     }
 
     function formatTimeShort(ts) {
@@ -1133,8 +1164,7 @@
           await saveEncryptedLocally();
           renderFolderList();
           renderEntries();
-          setPendingSync(true);
-          syncToGitHub();
+          markDirty();
         } else {
           renderFolderList();
         }
@@ -1191,8 +1221,7 @@
       await saveEncryptedLocally();
       renderFolderList();
       renderEntries();
-      setPendingSync(true);
-      syncToGitHub();
+      markDirty();
     }
 
     async function deleteFolder(folder) {
@@ -1203,8 +1232,7 @@
       await saveEncryptedLocally();
       renderFolderList();
       renderEntries();
-      setPendingSync(true);
-      syncToGitHub();
+      markDirty();
     }
 
     async function moveThoughtToFolder(thoughtId, folderId) {
@@ -1224,8 +1252,7 @@
         await saveEncryptedLocally();
         renderFolderList(folderId || '__all__');
         renderEntries();
-        setPendingSync(true);
-        syncToGitHub();
+        markDirty();
       }, 250);
     }
 
@@ -1469,6 +1496,16 @@
       row.addEventListener('pointercancel', () => { row.classList.remove('entry--pressing'); });
       row.addEventListener('pointerleave', () => { row.classList.remove('entry--pressing'); });
 
+      // Keyboard access: row is focusable (role="button", tabindex="0") but had
+      // no key handler, so Enter/Space silently did nothing for keyboard users.
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          enterReadMode(t.id, t.body, t.tag);
+          page.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+
       return article;
     }
 
@@ -1534,8 +1571,7 @@
       await saveEncryptedLocally();
       renderFolderList();
       renderEntries();
-      setPendingSync(true);
-      syncToGitHub();
+      markDirty();
     }
 
     // ── Save / Update (local-first) ──
@@ -1566,8 +1602,7 @@
         triggerPulse();
 
         // Background sync to GitHub
-        setPendingSync(true);
-        syncToGitHub();
+        markDirty();
       } else {
         // New thought
         const newThought = {
@@ -1590,8 +1625,7 @@
         triggerPulse();
 
         // Background sync to GitHub
-        setPendingSync(true);
-        syncToGitHub();
+        markDirty();
       }
     });
 
