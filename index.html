@@ -1670,13 +1670,16 @@
         const entry = e.target.closest('.entry[draggable="true"]');
         if (!entry) return;
 
-        // Skip if dragging starts on interactive buttons
+        // Skip if touch starts on action buttons
         if (e.target.closest('.entry-actions') || e.target.closest('.entry-delete-confirm')) {
           return;
         }
 
+        // Only record the source element here — do NOT set draggedThoughtId yet.
+        // Setting draggedThoughtId here would block the pointerdown long-press timer
+        // on the entry row, which checks "if (draggedThoughtId) return;".
+        // We set draggedThoughtId only when the user actually starts moving (in touchmove).
         dragSrcEl = entry;
-        draggedThoughtId = entry.dataset.id;
       }, { passive: true });
 
       document.addEventListener('touchmove', function(e) {
@@ -1684,6 +1687,9 @@
         const touch = e.touches[0];
 
         if (!dragGhost) {
+          // The user is clearly dragging now — commit to drag mode.
+          draggedThoughtId = dragSrcEl.dataset.id;
+
           dragGhost = dragSrcEl.cloneNode(true);
           dragGhost.style.position = 'fixed';
           dragGhost.style.pointerEvents = 'none';
@@ -1731,15 +1737,18 @@
         }
         dragSrcEl.classList.remove('entry--dragging');
 
-        const target = document.elementFromPoint(touch.clientX, touch.clientY);
-        if (target) {
-          const folderRow = target.closest('.folder-row');
-          if (folderRow) {
-            folderRow.classList.remove('folder-row--drag-over');
-            const folderId = folderRow.dataset.folderId;
-            const thoughtId = dragSrcEl.dataset.id;
-            if (thoughtId && folderId) {
-              moveThoughtToFolder(thoughtId, folderId);
+        // Only attempt a folder drop if we actually dragged (ghost was created)
+        if (draggedThoughtId) {
+          const target = document.elementFromPoint(touch.clientX, touch.clientY);
+          if (target) {
+            const folderRow = target.closest('.folder-row');
+            if (folderRow) {
+              folderRow.classList.remove('folder-row--drag-over');
+              const folderId = folderRow.dataset.folderId;
+              const thoughtId = dragSrcEl.dataset.id;
+              if (thoughtId && folderId) {
+                moveThoughtToFolder(thoughtId, folderId);
+              }
             }
           }
         }
