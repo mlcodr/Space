@@ -1325,24 +1325,32 @@ body {
     gap: 0.5rem;
   }
 
-  /* Tighten separator + footer in read-only mode on mobile */
+  /* Stretch text inputs and content to fill space, pushing buttons to the bottom naturally */
+  .thought-input {
+    flex-grow: 1;
+    height: auto !important;
+  }
+  .page-readonly-body {
+    flex-grow: 1;
+  }
+
+  /* Equal spacing above and below the separator line in read-only mode */
   .page-readonly-footer {
-    margin-top: 0.35rem;
-    padding-top: 0.35rem;
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
   }
 
-  /* Tighten separator + save area in write mode on mobile */
+  /* Equal spacing above and below the separator line in write/edit mode */
   .page-save-group:not([hidden]) {
-    margin-top: auto; /* Push to the very bottom of the page container */
-    padding-top: 0.35rem;
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
   }
 
-  /* Remove extra internal gap in read-only container and fill height to push footer down */
+  /* Allow read-only container to fill height and layout content vertically */
   .page-readonly:not([hidden]) {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
     gap: 0.35rem;
   }
 
