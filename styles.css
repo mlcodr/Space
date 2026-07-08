@@ -1333,13 +1333,22 @@ body {
 
   /* Tighten separator + save area in write mode on mobile */
   .page-save-group:not([hidden]) {
-    margin-top: 0.35rem;
+    margin-top: auto; /* Push to the very bottom of the page container */
     padding-top: 0.35rem;
   }
 
-  /* Remove extra internal gap in read-only container */
+  /* Remove extra internal gap in read-only container and fill height to push footer down */
   .page-readonly:not([hidden]) {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     gap: 0.35rem;
+  }
+
+  /* Make save status not take up empty space at the bottom on mobile when inactive */
+  .save-status {
+    min-height: 0;
   }
 
   .entry-excerpt {
