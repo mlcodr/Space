@@ -423,6 +423,13 @@ main {
   transition: color 150ms ease, background 150ms ease;
   text-align: left;
   width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.folder-row--pressing {
+  background: color-mix(in srgb, var(--pencil) 8%, transparent) !important;
 }
 
 .folder-row:first-child {
@@ -627,6 +634,9 @@ main {
   cursor: default;
   max-height: 1000px;
   overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -842,7 +852,8 @@ main {
   transition: background 100ms ease, transform 100ms ease;
 }
 
-.entry-action-btn {
+.entry-action-btn,
+.entry-move-select {
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--pencil);
   border-radius: 4px;
@@ -852,9 +863,16 @@ main {
   font-size: 0.8125rem;
   cursor: pointer;
   transition: border-color 200ms ease, color 200ms ease;
+  outline: none;
 }
 
-.entry-action-btn:hover {
+.entry-move-select {
+  max-width: 105px;
+  text-overflow: ellipsis;
+}
+
+.entry-action-btn:hover,
+.entry-move-select:hover {
   border-color: var(--graphite);
   color: var(--graphite);
 }
@@ -923,12 +941,15 @@ main {
   background: rgba(255, 255, 255, 0.06);
 }
 
-[data-theme="dark"] .entry-action-btn {
+[data-theme="dark"] .entry-action-btn,
+[data-theme="dark"] .entry-move-select {
   color: #C8C3B8;
   border-color: #6E6A5F;
+  background-color: var(--paper);
 }
 
-[data-theme="dark"] .entry-action-btn:hover {
+[data-theme="dark"] .entry-action-btn:hover,
+[data-theme="dark"] .entry-move-select:hover {
   border-color: #8BA880;
   color: #C8C3B8;
 }
@@ -1332,6 +1353,7 @@ body {
   }
 
   .entry-action-btn,
+  .entry-move-select,
   .confirm-yes,
   .confirm-no {
     padding: 0.25rem 0.35rem;
