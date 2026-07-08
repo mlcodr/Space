@@ -1665,6 +1665,9 @@
     (function() {
       let dragSrcEl = null;
       let dragGhost = null;
+      let dragStartX = 0;
+      let dragStartY = 0;
+      const DRAG_MOVE_THRESHOLD = 10; // px of finger movement before we commit to a drag
 
       document.addEventListener('touchstart', function(e) {
         const entry = e.target.closest('.entry[draggable="true"]');
@@ -1680,6 +1683,9 @@
         // on the entry row, which checks "if (draggedThoughtId) return;".
         // We set draggedThoughtId only when the user actually starts moving (in touchmove).
         dragSrcEl = entry;
+        const touch = e.touches[0];
+        dragStartX = touch.clientX;
+        dragStartY = touch.clientY;
       }, { passive: true });
 
       document.addEventListener('touchmove', function(e) {
@@ -1687,6 +1693,15 @@
         const touch = e.touches[0];
 
         if (!dragGhost) {
+          // Below the movement threshold, this could still be a scroll or a tap —
+          // don't commit to drag mode and don't preventDefault, so native scrolling
+          // (and the triple-tap gesture) keep working.
+          const dx = touch.clientX - dragStartX;
+          const dy = touch.clientY - dragStartY;
+          if (Math.abs(dx) < DRAG_MOVE_THRESHOLD && Math.abs(dy) < DRAG_MOVE_THRESHOLD) {
+            return;
+          }
+
           // The user is clearly dragging now — commit to drag mode.
           draggedThoughtId = dragSrcEl.dataset.id;
 
