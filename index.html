@@ -1384,43 +1384,8 @@
         confirm.hidden = false;
       });
 
-      const moveSelect = document.createElement('select');
-      moveSelect.className = 'entry-move-select';
-      moveSelect.ariaLabel = 'Move thought to folder';
-      
-      moveSelect.addEventListener('click', (e) => e.stopPropagation());
-      moveSelect.addEventListener('mousedown', (e) => e.stopPropagation());
-      moveSelect.addEventListener('pointerdown', (e) => e.stopPropagation());
-      
-      moveSelect.addEventListener('change', (e) => {
-        e.stopPropagation();
-        const destFolderId = moveSelect.value;
-        moveThoughtToFolder(t.id, destFolderId === '__none__' ? null : destFolderId);
-        moveSelect.value = '';
-      });
-
-      const placeholder = document.createElement('option');
-      placeholder.value = '';
-      placeholder.disabled = true;
-      placeholder.selected = true;
-      placeholder.textContent = 'Move to...';
-      moveSelect.appendChild(placeholder);
-
-      const noneOpt = document.createElement('option');
-      noneOpt.value = '__none__';
-      noneOpt.textContent = 'No Folder';
-      moveSelect.appendChild(noneOpt);
-
-      folders.forEach(f => {
-        const opt = document.createElement('option');
-        opt.value = f.id;
-        opt.textContent = f.name;
-        moveSelect.appendChild(opt);
-      });
-
       actions.appendChild(editBtn);
       actions.appendChild(deleteBtn);
-      actions.appendChild(moveSelect);
 
       const confirm = document.createElement('div');
       confirm.className = 'entry-delete-confirm';
@@ -1695,6 +1660,107 @@
         }
       }
     });
+
+    // ── Touch Drag and Drop Polyfill for Mobile ──
+    (function() {
+      let dragSrcEl = null;
+      let dragGhost = null;
+
+      document.addEventListener('touchstart', function(e) {
+        const entry = e.target.closest('.entry[draggable="true"]');
+        if (!entry) return;
+
+        // Skip if dragging starts on interactive buttons
+        if (e.target.closest('.entry-actions') || e.target.closest('.entry-delete-confirm')) {
+          return;
+        }
+
+        dragSrcEl = entry;
+        draggedThoughtId = entry.dataset.id;
+      }, { passive: true });
+
+      document.addEventListener('touchmove', function(e) {
+        if (!dragSrcEl) return;
+        const touch = e.touches[0];
+
+        if (!dragGhost) {
+          dragGhost = dragSrcEl.cloneNode(true);
+          dragGhost.style.position = 'fixed';
+          dragGhost.style.pointerEvents = 'none';
+          dragGhost.style.opacity = '0.7';
+          dragGhost.style.zIndex = '2000';
+          dragGhost.style.transform = 'scale(0.95)';
+          dragGhost.style.transition = 'none';
+          document.body.appendChild(dragGhost);
+
+          dragSrcEl.classList.add('entry--dragging');
+
+          if (window.innerWidth <= 640 && !folderListEl.classList.contains('folder-list--open')) {
+            folderListEl.classList.add('folder-list--open');
+            folderToggleArrow.classList.add('folder-toggle-arrow--rotated');
+          }
+        }
+
+        dragGhost.style.left = (touch.clientX - 50) + 'px';
+        dragGhost.style.top = (touch.clientY - 20) + 'px';
+
+        dragGhost.style.display = 'none';
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        dragGhost.style.display = 'block';
+
+        if (target) {
+          const folderRow = target.closest('.folder-row');
+          document.querySelectorAll('.folder-row--drag-over').forEach(el => {
+            if (el !== folderRow) el.classList.remove('folder-row--drag-over');
+          });
+          if (folderRow) {
+            folderRow.classList.add('folder-row--drag-over');
+          }
+        }
+
+        if (e.cancelable) e.preventDefault();
+      }, { passive: false });
+
+      document.addEventListener('touchend', function(e) {
+        if (!dragSrcEl) return;
+        const touch = e.changedTouches[0];
+
+        if (dragGhost) {
+          dragGhost.remove();
+          dragGhost = null;
+        }
+        dragSrcEl.classList.remove('entry--dragging');
+
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (target) {
+          const folderRow = target.closest('.folder-row');
+          if (folderRow) {
+            folderRow.classList.remove('folder-row--drag-over');
+            const folderId = folderRow.dataset.folderId;
+            const thoughtId = dragSrcEl.dataset.id;
+            if (thoughtId && folderId) {
+              moveThoughtToFolder(thoughtId, folderId);
+            }
+          }
+        }
+
+        dragSrcEl = null;
+        draggedThoughtId = null;
+      });
+
+      document.addEventListener('touchcancel', function() {
+        if (dragGhost) {
+          dragGhost.remove();
+          dragGhost = null;
+        }
+        if (dragSrcEl) {
+          dragSrcEl.classList.remove('entry--dragging');
+          dragSrcEl = null;
+        }
+        draggedThoughtId = null;
+        document.querySelectorAll('.folder-row--drag-over').forEach(el => el.classList.remove('folder-row--drag-over'));
+      });
+    })();
 
     // ── Caret / Resize Listeners ──
     thoughtInput.addEventListener('input', () => adjustScrollAndHeight(true));

@@ -852,8 +852,7 @@ main {
   transition: background 100ms ease, transform 100ms ease;
 }
 
-.entry-action-btn,
-.entry-move-select {
+.entry-action-btn {
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--pencil);
   border-radius: 4px;
@@ -863,16 +862,9 @@ main {
   font-size: 0.8125rem;
   cursor: pointer;
   transition: border-color 200ms ease, color 200ms ease;
-  outline: none;
 }
 
-.entry-move-select {
-  max-width: 105px;
-  text-overflow: ellipsis;
-}
-
-.entry-action-btn:hover,
-.entry-move-select:hover {
+.entry-action-btn:hover {
   border-color: var(--graphite);
   color: var(--graphite);
 }
@@ -941,15 +933,12 @@ main {
   background: rgba(255, 255, 255, 0.06);
 }
 
-[data-theme="dark"] .entry-action-btn,
-[data-theme="dark"] .entry-move-select {
+[data-theme="dark"] .entry-action-btn {
   color: #C8C3B8;
   border-color: #6E6A5F;
-  background-color: var(--paper);
 }
 
-[data-theme="dark"] .entry-action-btn:hover,
-[data-theme="dark"] .entry-move-select:hover {
+[data-theme="dark"] .entry-action-btn:hover {
   border-color: #8BA880;
   color: #C8C3B8;
 }
@@ -1353,7 +1342,6 @@ body {
   }
 
   .entry-action-btn,
-  .entry-move-select,
   .confirm-yes,
   .confirm-no {
     padding: 0.25rem 0.35rem;
