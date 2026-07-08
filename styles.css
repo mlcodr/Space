@@ -493,10 +493,10 @@ main {
   visibility: visible;
 }
 
-/* Touch devices: always visible */
+/* Touch devices: dots hidden — long-press folder to reveal Rename/Delete */
 @media (hover: none) {
   .folder-row-menu-btn {
-    visibility: visible;
+    visibility: hidden;
   }
 }
 

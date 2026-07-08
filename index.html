@@ -1710,6 +1710,19 @@
         dragGhost.style.left = (touch.clientX - 50) + 'px';
         dragGhost.style.top = (touch.clientY - 20) + 'px';
 
+        // ── Edge-scroll: auto-scroll page when dragging near top or bottom ──
+        // This lets the user drag a thought up to the folder panel on mobile.
+        const SCROLL_ZONE = 90; // px from screen edge that triggers scroll
+        if (touch.clientY < SCROLL_ZONE) {
+          // Near top — scroll page up so folders come into view
+          const speed = Math.ceil((SCROLL_ZONE - touch.clientY) / SCROLL_ZONE * 12);
+          window.scrollBy({ top: -speed, behavior: 'instant' });
+        } else if (touch.clientY > window.innerHeight - SCROLL_ZONE) {
+          // Near bottom — scroll page down
+          const speed = Math.ceil((touch.clientY - (window.innerHeight - SCROLL_ZONE)) / SCROLL_ZONE * 12);
+          window.scrollBy({ top: speed, behavior: 'instant' });
+        }
+
         dragGhost.style.display = 'none';
         const target = document.elementFromPoint(touch.clientX, touch.clientY);
         dragGhost.style.display = 'block';
