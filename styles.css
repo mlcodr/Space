@@ -470,43 +470,8 @@ main {
   font-weight: 600;
 }
 
-.folder-row-menu {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.folder-row-menu-btn {
-  display: block;
-  visibility: hidden;
-  padding: 0.35rem 0.4rem;
-  border: none;
-  border-radius: 3px;
-  background: transparent;
-  color: var(--pencil);
-  font-size: 0.75rem;
-  cursor: pointer;
-  line-height: 1;
-  transition: background 150ms ease, color 150ms ease;
-}
-
-.folder-row:hover .folder-row-menu-btn {
-  visibility: visible;
-}
-
-/* Touch devices: dots hidden — long-press folder to reveal Rename/Delete */
-@media (hover: none) {
-  .folder-row-menu-btn {
-    visibility: hidden;
-  }
-}
-
-.folder-row-menu-btn:hover {
-  background: color-mix(in srgb, var(--pencil) 15%, transparent);
-  color: var(--graphite);
-}
-
 .folder-row-dropdown {
-  display: none;
+  display: block;
   z-index: 50;
   background: var(--paper);
   border: 1px solid color-mix(in srgb, var(--pencil) 20%, transparent);
@@ -515,10 +480,6 @@ main {
   padding: 0.25rem 0;
   min-width: max-content;
   max-width: min(200px, calc(100vw - 2rem));
-}
-
-.folder-row-dropdown[open] {
-  display: block;
 }
 
 .folder-row-dropdown-item {

@@ -916,6 +916,7 @@
 
     // ── Folder List ──
     function renderFolderList(highlightId = null) {
+      closeFolderMenu();
       folderListEl.innerHTML = '';
 
       // Update search placeholder to show thought count dynamically
@@ -944,34 +945,35 @@
         row.appendChild(nameSpan);
         row.appendChild(countSpan);
 
-        // Menu button
-        const menuWrapper = document.createElement('div');
-        menuWrapper.className = 'folder-row-menu';
-        const menuBtn = document.createElement('button');
-        menuBtn.className = 'folder-row-menu-btn';
-        menuBtn.textContent = '\u2026';
-        menuBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          toggleFolderMenu(menuWrapper, folder);
-        });
-        menuWrapper.appendChild(menuBtn);
-        row.appendChild(menuWrapper);
-
-        // Short click / Long press detection
-        // Click / Multi-tap detection
-        let tapCount = 0;
-        let tapTimer = null;
+        // Press-and-hold to reveal Rename/Delete; a quick tap/click selects
+        // the folder. Folders are never drag sources (only thoughts are),
+        // so holding one doesn't fight with any drag gesture.
+        const HOLD_DURATION = 650;
+        const MOVE_THRESHOLD = 8;
         let startX = 0;
         let startY = 0;
-        const MOVE_THRESHOLD = 8;
         let didMove = false;
+        let holdTimer = null;
+        let holdTriggered = false;
 
         row.addEventListener('pointerdown', (e) => {
           if (e.button && e.button !== 0) return; // only primary button
+          // Rename swaps in an <input>, delete swaps in confirm buttons —
+          // both still live inside this row element. Let them handle their
+          // own clicks instead of racing them: without this, the row's own
+          // pointerup fires selectFolder() synchronously before the nested
+          // button's click event does, tearing out the confirm UI first.
+          if (e.target.closest('.folder-add-input, .folder-detail-delete-confirm')) return;
           startX = e.clientX;
           startY = e.clientY;
           didMove = false;
+          holdTriggered = false;
           row.classList.add('folder-row--pressing');
+          holdTimer = setTimeout(() => {
+            holdTriggered = true;
+            row.classList.remove('folder-row--pressing');
+            toggleFolderMenu(row, folder);
+          }, HOLD_DURATION);
         });
 
         row.addEventListener('pointermove', (e) => {
@@ -980,33 +982,19 @@
           if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
             didMove = true;
             row.classList.remove('folder-row--pressing');
+            clearTimeout(holdTimer);
           }
         });
 
-        row.addEventListener('pointerup', (e) => {
+        row.addEventListener('pointerup', () => {
           row.classList.remove('folder-row--pressing');
-          if (didMove) return; // ignore if they dragged/moved
-
-          tapCount++;
-          if (tapTimer) clearTimeout(tapTimer);
-
-          if (tapCount === 3) {
-            tapCount = 0;
-            tapTimer = null;
-            // Triple tap: Toggle Rename/Delete dropdown menu
-            toggleFolderMenu(menuWrapper, folder);
-          } else {
-            tapTimer = setTimeout(() => {
-              tapCount = 0;
-              tapTimer = null;
-              // Single/Double tap: Select the folder
-              selectFolder(folder.id);
-            }, 280);
-          }
+          clearTimeout(holdTimer);
+          if (didMove || holdTriggered) return; // handled by move-cancel or the hold itself
+          selectFolder(folder.id);
         });
 
-        row.addEventListener('pointercancel', () => { row.classList.remove('folder-row--pressing'); });
-        row.addEventListener('pointerleave', () => { row.classList.remove('folder-row--pressing'); });
+        row.addEventListener('pointercancel', () => { row.classList.remove('folder-row--pressing'); clearTimeout(holdTimer); });
+        row.addEventListener('pointerleave', () => { row.classList.remove('folder-row--pressing'); clearTimeout(holdTimer); });
         // Drop target
         row.addEventListener('dragover', (e) => { e.preventDefault(); row.classList.add('folder-row--drag-over'); });
         row.addEventListener('dragleave', () => row.classList.remove('folder-row--drag-over'));
@@ -1066,82 +1054,62 @@
       renderEntries();
     }
 
-    function toggleFolderMenu(wrapper, folder) {
-      // Close any other open menus
-      document.querySelectorAll('.folder-row-dropdown[open]').forEach(el => {
-        if (el !== wrapper.querySelector('.folder-row-dropdown')) {
-          el.removeAttribute('open');
-          el.remove();
-        }
+    function closeFolderMenu() {
+      const existing = document.querySelector('.folder-row-dropdown');
+      if (existing) existing.remove();
+    }
+
+    function toggleFolderMenu(row, folder) {
+      const existing = document.querySelector('.folder-row-dropdown');
+      const wasOpenForThisFolder = existing && existing.dataset.folderId === folder.id;
+      closeFolderMenu();
+      if (wasOpenForThisFolder) return;
+
+      // Appended to <body> (not inside the row, which is itself a <button>)
+      // so it can't end up nested inside another button, and a folder-list
+      // re-render elsewhere can't silently delete it out from under the user.
+      const dropdown = document.createElement('div');
+      dropdown.className = 'folder-row-dropdown';
+      dropdown.dataset.folderId = folder.id;
+
+      const renameItem = document.createElement('button');
+      renameItem.className = 'folder-row-dropdown-item';
+      renameItem.textContent = 'Rename';
+      renameItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeFolderMenu();
+        startInlineRename(folder, row);
       });
+      dropdown.appendChild(renameItem);
 
-      let dropdown = wrapper.querySelector('.folder-row-dropdown');
-      if (dropdown && dropdown.hasAttribute('open')) {
-        dropdown.removeAttribute('open');
-        dropdown.style.position = '';
-        dropdown.style.top = '';
-        dropdown.style.left = '';
-        return;
-      }
+      const deleteItem = document.createElement('button');
+      deleteItem.className = 'folder-row-dropdown-item folder-row-dropdown-item--danger';
+      deleteItem.textContent = 'Delete';
+      deleteItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeFolderMenu();
+        startInlineDelete(folder, row);
+      });
+      dropdown.appendChild(deleteItem);
 
-      if (!dropdown) {
-        dropdown = document.createElement('div');
-        dropdown.className = 'folder-row-dropdown';
+      document.body.appendChild(dropdown);
 
-        const renameItem = document.createElement('button');
-        renameItem.className = 'folder-row-dropdown-item';
-        renameItem.textContent = 'Rename';
-        renameItem.addEventListener('click', (e) => {
-          e.stopPropagation();
-          dropdown.removeAttribute('open');
-          dropdown.style.position = '';
-          dropdown.style.top = '';
-          dropdown.style.left = '';
-          startInlineRename(folder, wrapper.closest('.folder-row'));
-        });
-        dropdown.appendChild(renameItem);
+      const rowRect = row.getBoundingClientRect();
+      const dropWidth = dropdown.offsetWidth;
+      let left = rowRect.left + rowRect.width / 2 - dropWidth / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - dropWidth - 8));
+      dropdown.style.position = 'fixed';
+      dropdown.style.top = (rowRect.bottom + 4) + 'px';
+      dropdown.style.left = left + 'px';
 
-        const deleteItem = document.createElement('button');
-        deleteItem.className = 'folder-row-dropdown-item folder-row-dropdown-item--danger';
-        deleteItem.textContent = 'Delete';
-        deleteItem.addEventListener('click', (e) => {
-          e.stopPropagation();
-          dropdown.removeAttribute('open');
-          dropdown.style.position = '';
-          dropdown.style.top = '';
-          dropdown.style.left = '';
-          startInlineDelete(folder, wrapper.closest('.folder-row'));
-        });
-        dropdown.appendChild(deleteItem);
-
-        wrapper.appendChild(dropdown);
-      }
-
-      dropdown.setAttribute('open', '');
-
-      // Position dropdown using the tapped button's bounding rect
-      const btn = wrapper.querySelector('.folder-row-menu-btn');
-      if (btn) {
-        const btnRect = btn.getBoundingClientRect();
-        const dropWidth = dropdown.offsetWidth;
-        let left = btnRect.left + btnRect.width / 2 - dropWidth / 2;
-        left = Math.max(8, Math.min(left, window.innerWidth - dropWidth - 8));
-        dropdown.style.position = 'fixed';
-        dropdown.style.top = (btnRect.bottom + 4) + 'px';
-        dropdown.style.left = left + 'px';
-      }
-
-      // Close on click outside
+      // Close on click/tap outside
       const closeHandler = (e) => {
-        if (!wrapper.contains(e.target)) {
-          dropdown.removeAttribute('open');
-          dropdown.style.position = '';
-          dropdown.style.top = '';
-          dropdown.style.left = '';
-          document.removeEventListener('click', closeHandler);
+        if (!dropdown.contains(e.target)) {
+          closeFolderMenu();
+          document.removeEventListener('pointerdown', closeHandler, true);
         }
       };
-      setTimeout(() => document.addEventListener('click', closeHandler), 0);
+      setTimeout(() => document.addEventListener('pointerdown', closeHandler, true), 0);
     }
 
     function startInlineRename(folder, rowEl) {
