@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.mlcodr.space",
+    "sha256_cert_fingerprints": ["0D:4C:B3:00:F9:D4:57:C9:7E:A1:7B:9B:9C:88:DD:EB:F8:2F:FC:AC:93:DC:7B:53:39:1F:76:95:3B:EE:A5:06"]
+  }
+}]
