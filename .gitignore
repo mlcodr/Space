@@ -1,14 +1,4 @@
-# Environment and secrets
-.env
-.env.*
-*.pem
-*.key
-*.token
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Editor folders
-.vscode/
-.idea/
+.aider.chat.history.md
+.aider.input.history
+.aider.tags.cache.v4/
+.claude/

@@ -1,7 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
-  <rect width="192" height="192" rx="32" fill="#1B1D23"/>
-  <circle cx="96" cy="88" r="36" fill="none" stroke="#6F8768" stroke-width="4"/>
-  <circle cx="96" cy="88" r="6" fill="#6F8768"/>
-  <line x1="60" y1="140" x2="132" y2="140" stroke="#6E6A5F" stroke-width="2" stroke-linecap="round"/>
-  <line x1="72" y1="152" x2="120" y2="152" stroke="#6E6A5F" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+  <defs>
+    <linearGradient id="bg" x1="24" y1="16" x2="168" y2="176" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1C1C21"/>
+      <stop offset="1" stop-color="#111115"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(136 42) rotate(132.592) scale(98.9574 76.2038)">
+      <stop offset="0" stop-color="#62785C" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#62785C" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="192" height="192" rx="42" fill="url(#bg)"/>
+  <rect width="192" height="192" rx="42" fill="url(#glow)"/>
+  <path d="M49 34H117C130.255 34 141 44.7452 141 58V74H75C61.7452 74 51 84.7452 51 98V158H49C35.7452 158 25 147.255 25 134V58C25 44.7452 35.7452 34 49 34Z" fill="#F4EFE4"/>
+  <path d="M75 74H143C156.255 74 167 84.7452 167 98V134C167 147.255 156.255 158 143 158H75C61.7452 158 51 147.255 51 134V98C51 84.7452 61.7452 74 75 74Z" fill="#FFF9F0"/>
+  <path d="M108 88L130 110L108 132L86 110L108 88Z" fill="none" stroke="#62785C" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M108 97L121 110L108 123L95 110L108 97Z" fill="none" stroke="#7B7264" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M71 54H118" stroke="#938879" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
+  <path d="M71 122H87" stroke="#938879" stroke-width="3" stroke-linecap="round"/>
+  <path d="M71 136H89" stroke="#938879" stroke-width="3" stroke-linecap="round" opacity="0.75"/>
+  <circle cx="108" cy="110" r="4.5" fill="#62785C"/>
 </svg>

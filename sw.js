@@ -1,11 +1,12 @@
-const CACHE_NAME = 'space-v1';
+const CACHE_NAME = 'space-v3';
 const SHELL_ASSETS = [
   './',
   './index.html',
   './styles.css',
   './icon-192.svg',
   './icon-512.svg',
-  './manifest.json'
+  './manifest.json',
+  './.nojekyll'
 ];
 
 self.addEventListener('install', (event) => {

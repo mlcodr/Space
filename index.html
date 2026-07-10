@@ -4,8 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Space</title>
-  <meta name="theme-color" content="#1B1D23" media="(prefers-color-scheme: dark)">
-  <meta name="theme-color" content="#EDE9DF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#17171B" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#EFE5D6" media="(prefers-color-scheme: light)">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Space">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon-192.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-192.svg">
@@ -925,10 +929,12 @@
       // Folder rows
       folders.forEach(folder => {
         const count = thoughts.filter(t => t.folderId === folder.id).length;
-        const row = document.createElement('button');
+        const row = document.createElement('div');
         row.className = 'folder-row';
         if (currentView === folder.id) row.classList.add('folder-row--active');
         row.dataset.folderId = folder.id;
+        row.setAttribute('role', 'button');
+        row.setAttribute('tabindex', '0');
         if (highlightId === folder.id) row.classList.add('folder-row--dropped');
         
         const nameSpan = document.createElement('span');
@@ -995,6 +1001,13 @@
 
         row.addEventListener('pointercancel', () => { row.classList.remove('folder-row--pressing'); clearTimeout(holdTimer); });
         row.addEventListener('pointerleave', () => { row.classList.remove('folder-row--pressing'); clearTimeout(holdTimer); });
+        row.addEventListener('keydown', (e) => {
+          if (e.target !== row) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            selectFolder(folder.id);
+          }
+        });
         // Drop target
         row.addEventListener('dragover', (e) => { e.preventDefault(); row.classList.add('folder-row--drag-over'); });
         row.addEventListener('dragleave', () => row.classList.remove('folder-row--drag-over'));
@@ -1121,6 +1134,7 @@
       input.className = 'folder-add-input';
       input.value = currentName;
       input.maxLength = 30;
+      rowEl.classList.add('folder-row--editing');
 
       let saved = false;
       const save = async () => {
@@ -1138,7 +1152,10 @@
         }
       };
 
+      input.addEventListener('pointerdown', (e) => e.stopPropagation());
+      input.addEventListener('click', (e) => e.stopPropagation());
       input.addEventListener('keydown', (e) => {
+        e.stopPropagation();
         if (e.key === 'Enter') { e.preventDefault(); save(); }
         else if (e.key === 'Escape') { saved = true; renderFolderList(); }
       });
@@ -1206,6 +1223,7 @@
     async function moveThoughtToFolder(thoughtId, folderId) {
       const t = thoughts.find(x => x.id === thoughtId);
       if (!t) return;
+      if ((t.folderId || null) === (folderId || null)) return;
 
       const card = document.querySelector(`.entry[data-id="${thoughtId}"]`);
       if (card) {
@@ -1236,6 +1254,7 @@
       if (!e.target.closest('.entry')) {
         document.querySelectorAll('.entry-actions:not([hidden])').forEach(el => el.hidden = true);
         document.querySelectorAll('.entry-delete-confirm:not([hidden])').forEach(el => el.hidden = true);
+        document.querySelectorAll('.entry-move-menu:not([hidden])').forEach(el => el.hidden = true);
       }
     });
 
@@ -1280,13 +1299,21 @@
       article.dataset.id = t.id;
       article.draggable = true;
 
-      // Drag handlers
       article.addEventListener('dragstart', (e) => {
+        if (e.target.closest('.entry-actions') || e.target.closest('.entry-delete-confirm')) {
+          e.preventDefault();
+          return;
+        }
         draggedThoughtId = t.id;
         article.classList.add('entry--dragging');
-        e.dataTransfer.setData('text/plain', t.id);
         e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', t.id);
+        if (window.innerWidth <= 640 && !folderListEl.classList.contains('folder-list--open')) {
+          folderListEl.classList.add('folder-list--open');
+          folderToggleArrow.classList.add('folder-toggle-arrow--rotated');
+        }
       });
+
       article.addEventListener('dragend', () => {
         article.classList.remove('entry--dragging');
         draggedThoughtId = null;
@@ -1371,6 +1398,10 @@
         startEdit(t.id);
       });
 
+      const moveBtn = document.createElement('button');
+      moveBtn.className = 'entry-action-btn';
+      moveBtn.textContent = 'Move';
+
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'entry-action-btn entry-action-btn--danger';
       deleteBtn.textContent = 'Delete';
@@ -1381,7 +1412,46 @@
       });
 
       actions.appendChild(editBtn);
+      actions.appendChild(moveBtn);
       actions.appendChild(deleteBtn);
+
+      const moveMenu = document.createElement('div');
+      moveMenu.className = 'entry-move-menu';
+      moveMenu.hidden = true;
+
+      const allThoughtsBtn = document.createElement('button');
+      allThoughtsBtn.className = 'entry-move-option';
+      allThoughtsBtn.textContent = t.folderId ? 'Move to all thoughts' : 'Keep in all thoughts';
+      allThoughtsBtn.disabled = !t.folderId;
+      allThoughtsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        moveMenu.hidden = true;
+        actions.hidden = true;
+        moveThoughtToFolder(t.id, null);
+      });
+      moveMenu.appendChild(allThoughtsBtn);
+
+      folders.forEach(folder => {
+        const option = document.createElement('button');
+        option.className = 'entry-move-option';
+        option.textContent = folder.name;
+        option.disabled = t.folderId === folder.id;
+        option.addEventListener('click', (e) => {
+          e.stopPropagation();
+          moveMenu.hidden = true;
+          actions.hidden = true;
+          moveThoughtToFolder(t.id, folder.id);
+        });
+        moveMenu.appendChild(option);
+      });
+
+      moveBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        confirm.hidden = true;
+        const willOpen = moveMenu.hidden;
+        document.querySelectorAll('.entry-move-menu:not([hidden])').forEach(el => el.hidden = true);
+        moveMenu.hidden = !willOpen;
+      });
 
       const confirm = document.createElement('div');
       confirm.className = 'entry-delete-confirm';
@@ -1407,6 +1477,7 @@
 
       article.appendChild(row);
       article.appendChild(actions);
+      article.appendChild(moveMenu);
       article.appendChild(confirm);
 
       // ── Tap / Multi-tap detection ──
@@ -1652,14 +1723,12 @@
       }
     });
 
-    // ── Dragstart Auto-Expand folders ──
+    // ── Desktop drag helper ──
     document.addEventListener('dragstart', (e) => {
       const entry = e.target.closest('.entry');
-      if (entry) {
-        if (window.innerWidth <= 640 && !folderListEl.classList.contains('folder-list--open')) {
-          folderListEl.classList.add('folder-list--open');
-          folderToggleArrow.classList.add('folder-toggle-arrow--rotated');
-        }
+      if (entry && window.innerWidth <= 640 && !folderListEl.classList.contains('folder-list--open')) {
+        folderListEl.classList.add('folder-list--open');
+        folderToggleArrow.classList.add('folder-toggle-arrow--rotated');
       }
     });
 
@@ -1672,7 +1741,7 @@
       const DRAG_MOVE_THRESHOLD = 10; // px of finger movement before we commit to a drag
 
       document.addEventListener('touchstart', function(e) {
-        const entry = e.target.closest('.entry[draggable="true"]');
+        const entry = e.target.closest('.entry');
         if (!entry) return;
 
         // Skip if touch starts on action buttons
