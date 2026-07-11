@@ -1024,37 +1024,66 @@
       const addRow = document.createElement('button');
       addRow.className = 'folder-add-row';
       addRow.textContent = '+ New folder';
+
+      const addComposer = document.createElement('div');
+      addComposer.className = 'folder-add-composer';
+      addComposer.hidden = true;
+
       const addInput = document.createElement('input');
       addInput.type = 'text';
       addInput.className = 'folder-add-input';
       addInput.placeholder = 'folder name';
       addInput.maxLength = 30;
-      addInput.hidden = true;
+
+      const addActions = document.createElement('div');
+      addActions.className = 'folder-add-actions';
+
+      const addSaveBtn = document.createElement('button');
+      addSaveBtn.type = 'button';
+      addSaveBtn.className = 'folder-add-action folder-add-action--save';
+      addSaveBtn.textContent = 'Save';
+
+      const addCancelBtn = document.createElement('button');
+      addCancelBtn.type = 'button';
+      addCancelBtn.className = 'folder-add-action folder-add-action--cancel';
+      addCancelBtn.textContent = 'Cancel';
+
+      addActions.appendChild(addSaveBtn);
+      addActions.appendChild(addCancelBtn);
+      addComposer.appendChild(addInput);
+      addComposer.appendChild(addActions);
+
+      const closeComposer = () => {
+        addComposer.hidden = true;
+        addRow.hidden = false;
+        addInput.value = '';
+      };
+
+      const saveComposer = () => {
+        const name = addInput.value.trim();
+        if (!name) return;
+        createFolder(name);
+        closeComposer();
+      };
+
       addRow.addEventListener('click', () => {
         addRow.hidden = true;
-        addInput.hidden = false;
+        addComposer.hidden = false;
         addInput.value = '';
         addInput.focus();
       });
       addInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
-          const name = addInput.value.trim();
-          if (name) {
-            createFolder(name);
-            addInput.hidden = true;
-            addRow.hidden = false;
-          }
+          e.preventDefault();
+          saveComposer();
         } else if (e.key === 'Escape') {
-          addInput.hidden = true;
-          addRow.hidden = false;
+          closeComposer();
         }
       });
-      addInput.addEventListener('blur', () => {
-        addInput.hidden = true;
-        addRow.hidden = false;
-      });
+      addSaveBtn.addEventListener('click', saveComposer);
+      addCancelBtn.addEventListener('click', closeComposer);
       folderListEl.appendChild(addRow);
-      folderListEl.appendChild(addInput);
+      folderListEl.appendChild(addComposer);
     }
 
     function selectFolder(folderId) {

@@ -641,6 +641,15 @@ main {
   color: var(--graphite);
 }
 
+.folder-add-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem 0.45rem 0.7rem;
+  border-top: 1px solid color-mix(in srgb, var(--pencil) 12%, transparent);
+  animation: panelReveal 180ms ease-out;
+}
+
 .folder-add-input {
   display: block;
   flex: 1;
@@ -680,6 +689,41 @@ main {
 
 [data-theme="dark"] .folder-add-input::placeholder {
   color: color-mix(in srgb, var(--pencil) 88%, var(--graphite) 12%);
+}
+
+.folder-add-actions {
+  display: flex;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.folder-add-action {
+  padding: 0.38rem 0.72rem;
+  border: 1px solid color-mix(in srgb, var(--pencil) 20%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pencil);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.folder-add-action:hover {
+  border-color: color-mix(in srgb, var(--pencil) 34%, transparent);
+  color: var(--graphite);
+}
+
+.folder-add-action--save {
+  border-color: color-mix(in srgb, var(--lichen) 40%, transparent);
+  background: color-mix(in srgb, var(--lichen) 10%, transparent);
+  color: var(--lichen);
+}
+
+.folder-add-action--save:hover {
+  border-color: color-mix(in srgb, var(--lichen) 58%, transparent);
+  background: color-mix(in srgb, var(--lichen) 16%, transparent);
+  color: var(--lichen);
 }
 
 .folder-row--editing {
