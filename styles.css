@@ -647,6 +647,7 @@ main {
   gap: 0.45rem;
   padding: 0.55rem 0.45rem 0.7rem;
   border-top: 1px solid color-mix(in srgb, var(--pencil) 12%, transparent);
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
   animation: panelReveal 180ms ease-out;
 }
 
@@ -724,6 +725,11 @@ main {
   border-color: color-mix(in srgb, var(--lichen) 58%, transparent);
   background: color-mix(in srgb, var(--lichen) 16%, transparent);
   color: var(--lichen);
+}
+
+.folder-add-action:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .folder-row--editing {
@@ -1890,12 +1896,32 @@ body {
     border: 1px solid color-mix(in srgb, var(--pencil) 12%, transparent);
     border-radius: 18px;
     background: color-mix(in srgb, var(--paper) 95%, var(--graphite));
-    max-height: 260px;
+    max-height: min(320px, 44svh);
     overflow-y: auto;
+    scroll-padding-bottom: 4.5rem;
   }
 
   .folder-list.folder-list--open {
     display: block;
+  }
+
+  .folder-add-composer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin-top: 0.2rem;
+    padding-bottom: 0.55rem;
+    border-radius: 12px;
+    box-shadow: 0 -8px 18px rgba(0, 0, 0, 0.04);
+  }
+
+  .folder-add-actions {
+    justify-content: stretch;
+  }
+
+  .folder-add-action {
+    flex: 1;
+    min-height: 2.25rem;
   }
 
   .controls {

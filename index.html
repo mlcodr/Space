@@ -1053,25 +1053,42 @@
       addComposer.appendChild(addInput);
       addComposer.appendChild(addActions);
 
+      const revealComposer = () => {
+        addRow.hidden = true;
+        addComposer.hidden = false;
+        addInput.value = '';
+        addSaveBtn.disabled = false;
+        addCancelBtn.disabled = false;
+
+        requestAnimationFrame(() => {
+          addInput.focus({ preventScroll: true });
+          addComposer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          setTimeout(() => addComposer.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 220);
+        });
+      };
+
       const closeComposer = () => {
         addComposer.hidden = true;
         addRow.hidden = false;
         addInput.value = '';
+        addSaveBtn.disabled = false;
+        addCancelBtn.disabled = false;
       };
 
-      const saveComposer = () => {
+      let savingFolder = false;
+      const saveComposer = async () => {
+        if (savingFolder) return;
         const name = addInput.value.trim();
         if (!name) return;
-        createFolder(name);
+        savingFolder = true;
+        addSaveBtn.disabled = true;
+        addCancelBtn.disabled = true;
+        await createFolder(name);
+        savingFolder = false;
         closeComposer();
       };
 
-      addRow.addEventListener('click', () => {
-        addRow.hidden = true;
-        addComposer.hidden = false;
-        addInput.value = '';
-        addInput.focus();
-      });
+      addRow.addEventListener('click', revealComposer);
       addInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
@@ -1079,6 +1096,9 @@
         } else if (e.key === 'Escape') {
           closeComposer();
         }
+      });
+      addInput.addEventListener('focus', () => {
+        setTimeout(() => addComposer.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 180);
       });
       addSaveBtn.addEventListener('click', saveComposer);
       addCancelBtn.addEventListener('click', closeComposer);
